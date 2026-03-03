@@ -4,3 +4,9 @@ derby.log
 hive/
 output/
 __pycache__/
+# ignore various generated artifacts
+*.log
+*.html
+# explicitly ignore map and analysis output
+analysis.log
+crime_hotspots_map.html
