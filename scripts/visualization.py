@@ -1,164 +1,265 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
 import pandas as pd
 import folium
-from folium import plugins
 import json
+import os
+
+# =====================================
+# PATH SETUP
+# =====================================
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+OUTPUT_DIR = os.path.join(BASE_DIR, "output")
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# =====================================
+# START SPARK
+# =====================================
 
 spark = SparkSession.builder.appName("Crime Visualization").getOrCreate()
 
-print("Loading aggregated data...")
-state_agg = spark.read.parquet("output/state_agg_with_predictions")
+time_series = spark.read.parquet(
+    "hdfs://localhost:9000/crime/output/state_crime_time_series"
+)
 
-# Convert to pandas for easier manipulation
-state_df = state_agg.toPandas()
-
-print("State data loaded:")
-print(state_df.head(10))
-
-# Indian states and union territories coordinates for mapping
-state_coords = {
-    "ANDHRA PRADESH": (15.9129, 78.6675),
-    "ARUNACHAL PRADESH": (28.2180, 94.7278),
-    "ASSAM": (26.2006, 92.9376),
-    "BIHAR": (25.0961, 85.3131),
-    "CHHATTISGARH": (21.4734, 81.6866),
-    "GOA": (15.3017, 73.8207),
-    "GUJARAT": (22.2587, 71.1924),
-    "HARYANA": (29.0588, 77.0745),
-    "HIMACHAL PRADESH": (31.1048, 77.1734),
-    "JHARKHAND": (23.6102, 85.2799),
-    "KARNATAKA": (15.3173, 75.7139),
-    "KERALA": (10.8505, 76.2711),
-    "MADHYA PRADESH": (22.9375, 78.6553),
-    "MAHARASHTRA": (19.7515, 75.7139),
-    "MANIPUR": (25.1458, 94.8670),
-    "MEGHALAYA": (25.4670, 91.3662),
-    "MIZORAM": (23.1815, 92.9789),
-    "NAGALAND": (26.1584, 94.5624),
-    "ODISHA": (20.9517, 85.0985),
-    "PUNJAB": (31.1471, 75.3412),
-    "RAJASTHAN": (27.0238, 74.2179),
-    "SIKKIM": (27.5330, 88.5122),
-    "TAMIL NADU": (11.1271, 79.2787),
-    "TELANGANA": (18.1124, 79.0193),
-    "TRIPURA": (23.4408, 91.9882),
-    "UTTAR PRADESH": (26.8467, 80.9462),
-    "UTTARAKHAND": (30.0668, 79.0193),
-    "WEST BENGAL": (24.6551, 88.2038),
-    "ANDAMAN AND NICOBAR": (12.2381, 92.7365),
-    "CHANDIGARH": (30.7333, 76.8277),
-    "DADRA AND NAGAR HAVELI": (20.1809, 73.0236),
-    "DAMAN AND DIU": (20.6667, 72.8333),
-    "LAKSHADWEEP": (12.2225, 73.1938),
-    "PUDUCHERRY": (12.0657, 79.8711),
-    "DELHI": (28.7041, 77.1025)
-}
-
-print("\n" + "="*50)
-print("GENERATING CRIME HOTSPOTS MAP")
-print("="*50)
-
-# Create base map centered on India
-india_center = [20.5937, 78.9629]
-crime_map = folium.Map(location=india_center, zoom_start=5, tiles="OpenStreetMap")
-
-# Aggregate crime by state across all years
-state_crime = state_df.groupby("state")["total_crimes"].sum().reset_index()
-state_crime = state_crime.sort_values("total_crimes", ascending=False)
-
-print("\nTop states by total crimes:")
-print(state_crime.head(10))
-
-# Normalize crime values for color intensity
-max_crimes = state_crime["total_crimes"].max()
-min_crimes = state_crime["total_crimes"].min()
-
-# Add markers for each state
-for idx, row in state_crime.iterrows():
-    state_name = row["state"].upper().strip()
-    crimes = row["total_crimes"]
-    
-    if state_name in state_coords:
-        lat, lon = state_coords[state_name]
-        
-        # Calculate color intensity (red gradient)
-        intensity = (crimes - min_crimes) / (max_crimes - min_crimes)
-        color = f"hsl(0, 100%, {100 - intensity*50}%)"  # Red shades
-        
-        # Add circle marker
-        folium.CircleMarker(
-            location=[lat, lon],
-            radius=5 + intensity * 15,
-            popup=f"{state_name}<br>Total Crimes: {int(crimes)}",
-            color=color,
-            fill=True,
-            fillColor=color,
-            fillOpacity=0.7,
-            weight=2
-        ).add_to(crime_map)
-
-# Add layer control
-folium.LayerControl().add_to(crime_map)
-
-# Save map
-map_path = "output/crime_hotspots_map.html"
-crime_map.save(map_path)
-print(f"✓ Map saved to {map_path}")
-
-# Generate summary statistics
-print("\n" + "="*50)
-print("GENERATING SUMMARY STATISTICS")
-print("="*50)
-
-summary_stats = []
-summary_stats.append("=" * 70)
-summary_stats.append("INDIA CRIME DATA ANALYSIS - SUMMARY REPORT")
-summary_stats.append("=" * 70)
-summary_stats.append("")
-
-summary_stats.append("DATA PERIOD: 2001-2014")
-summary_stats.append("")
-
-summary_stats.append("OVERALL STATISTICS:")
-total_crimes = state_df["total_crimes"].sum()
-avg_crimes = state_df["total_crimes"].mean()
-max_crimes_overall = state_df["total_crimes"].max()
-min_crimes_overall = state_df["total_crimes"].min()
-
-summary_stats.append(f"  Total Crimes (2001-2014): {int(total_crimes):,}")
-summary_stats.append(f"  Average Crimes per Record: {int(avg_crimes):,}")
-summary_stats.append(f"  Maximum Crimes in Single Year-State: {int(max_crimes_overall):,}")
-summary_stats.append(f"  Minimum Crimes in Single Year-State: {int(min_crimes_overall):,}")
-summary_stats.append("")
-
-summary_stats.append("TOP 10 STATES BY TOTAL CRIMES:")
-for rank, (idx, row) in enumerate(state_crime.head(10).iterrows(), 1):
-    summary_stats.append(f"  {rank}. {row['state']}: {int(row['total_crimes']):,}")
-
-summary_stats.append("")
-summary_stats.append("YEARLY TRENDS:")
-year_agg = state_df.groupby("year")["total_crimes"].sum().reset_index()
-year_agg = year_agg.sort_values("year")
-for _, row in year_agg.iterrows():
-    summary_stats.append(f"  Year {int(row['year'])}: {int(row['total_crimes']):,}")
-
-summary_stats.append("")
-summary_stats.append("ANALYSIS OUTPUTS:")
-summary_stats.append("  - data_preparation.py: Data loading, normalization, cleaning")
-summary_stats.append("  - analytics.py: K-means clustering (5 clusters), Linear regression predictions")
-summary_stats.append("  - visualization.py: Interactive Folium heatmap, summary statistics")
-
-summary_stats.append("")
-summary_stats.append("=" * 70)
-
-# Write to file
-summary_text = "\n".join(summary_stats)
-with open("output/crime_analysis_summary.txt", "w") as f:
-    f.write(summary_text)
-
-print(summary_text)
-print(f"\n✓ Summary saved to output/crime_analysis_summary.txt")
-
+ts_df = time_series.toPandas()
 spark.stop()
-print("\n✓ Visualization complete!")
+
+# =====================================
+# CLEAN DATA
+# =====================================
+
+ts_df["state"] = ts_df["state"].str.strip().str.upper()
+
+years = sorted(ts_df["year"].unique())
+
+# =====================================
+# LOAD GEOJSON
+# =====================================
+
+geojson_path = os.path.join(DATA_DIR, "india_states.geojson")
+
+with open(geojson_path) as f:
+    india_geojson = json.load(f)
+
+# Normalize geojson names
+for f in india_geojson["features"]:
+    f["properties"]["NAME_1"] = f["properties"]["NAME_1"].strip().upper()
+
+geo_states = [f["properties"]["NAME_1"] for f in india_geojson["features"]]
+
+data_states = ts_df["state"].unique()
+
+# =====================================
+# STATE NAME MATCHING
+# =====================================
+
+state_match = {}
+
+for g in geo_states:
+    for d in data_states:
+        if g in d or d in g:
+            state_match[g] = d
+
+# =====================================
+# BUILD YEAR DATA USING GEOJSON NAMES
+# =====================================
+
+year_data = {}
+
+for year in years:
+
+    year_df = ts_df[ts_df["year"] == year]
+
+    values = year_df.groupby("state")["total_crimes"].sum().to_dict()
+
+    mapped = {}
+
+    for geo_state in geo_states:
+
+        if geo_state in state_match:
+
+            mapped[geo_state] = values.get(state_match[geo_state], 0)
+
+        else:
+
+            mapped[geo_state] = 0
+
+    year_data[str(year)] = mapped
+
+# =====================================
+# BUILD STATE TREND DATA
+# =====================================
+
+state_series = {}
+
+for state in data_states:
+
+    s = ts_df[ts_df["state"] == state].sort_values("year")
+
+    state_series[state] = {
+        "years": s["year"].tolist(),
+        "values": s["total_crimes"].tolist()
+    }
+
+# =========================================================
+# HEATMAP
+# =========================================================
+
+heat_map = folium.Map(
+    location=[22.5,80],
+    zoom_start=5,
+    tiles="cartodbpositron"
+)
+
+script = f"""
+<script>
+
+var geojson = {json.dumps(india_geojson)};
+var yearData = {json.dumps(year_data)};
+var layer;
+
+// Wait for Leaflet map to be ready
+function waitForMap() {{
+    if (typeof {heat_map.get_name()} === 'undefined') {{
+        setTimeout(waitForMap, 100);
+        return;
+    }}
+    var map = {heat_map.get_name()};
+
+    function getColor(v) {{
+        if (v > 500000) return "#800026";
+        if (v > 350000) return "#BD0026";
+        if (v > 250000) return "#E31A1C";
+        if (v > 150000) return "#FC4E2A";
+        if (v > 50000)  return "#FD8D3C";
+        return "#FEB24C";
+    }}
+
+    function drawMap(year) {{
+        if (layer) map.removeLayer(layer);
+        layer = L.geoJson(geojson, {{
+            style: function(feature) {{
+                var state = feature.properties.NAME_1;
+                var value = (yearData[year] && yearData[year][state]) ? yearData[year][state] : 0;
+                return {{
+                    fillColor: getColor(value),
+                    weight: 1,
+                    color: "black",
+                    fillOpacity: 0.7
+                }};
+            }},
+            onEachFeature: function(feature, layer) {{
+                var state = feature.properties.NAME_1;
+                var value = (yearData[year] && yearData[year][state]) ? yearData[year][state] : 0;
+                layer.bindTooltip(state + ": " + value.toLocaleString() + " crimes");
+            }}
+        }}).addTo(map);
+    }}
+
+    window.drawMap = drawMap;
+    drawMap("{years[0]}");
+}}
+
+waitForMap();
+
+function updateYear() {{
+    var y = document.getElementById("yearSelect").value;
+    window.drawMap(y);
+}}
+
+</script>
+
+<div style="
+position:fixed;
+top:10px;
+left:50px;
+z-index:9999;
+background:white;
+padding:10px;
+border:2px solid grey">
+<b>Select Year</b><br>
+<select id="yearSelect" onchange="updateYear()">
+{''.join([f'<option value="{y}">{y}</option>' for y in years])}
+</select>
+</div>
+"""
+heat_map.get_root().html.add_child(folium.Element(script))
+
+heat_output = os.path.join(OUTPUT_DIR,"crime_heatmap_year.html")
+
+heat_map.save(heat_output)
+
+# =========================================================
+# STATE TREND CHART
+# =========================================================
+
+chart_html = f"""
+<html>
+
+<head>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+<div style="width:900px;margin:auto">
+
+<h2>Crime Trend by State</h2>
+
+<select id="stateSelect" onchange="updateChart()">
+{''.join([f'<option value="{s}">{s}</option>' for s in data_states])}
+</select>
+
+<canvas id="chart"></canvas>
+
+</div>
+
+<script>
+
+var stateSeries={json.dumps(state_series)};
+
+var ctx=document.getElementById('chart').getContext('2d');
+
+var chart=new Chart(ctx,{{
+type:'line',
+data:{{
+labels:[],
+datasets:[{{
+label:'Crimes',
+data:[],
+borderWidth:3
+}}]
+}}
+}});
+
+function updateChart(){{
+
+var s=document.getElementById("stateSelect").value;
+
+var d=stateSeries[s];
+
+chart.data.labels=d.years;
+chart.data.datasets[0].data=d.values;
+
+chart.update();
+
+}}
+
+updateChart();
+
+</script>
+
+</body>
+</html>
+"""
+
+chart_output = os.path.join(OUTPUT_DIR,"state_trend_chart.html")
+
+with open(chart_output,"w") as f:
+    f.write(chart_html)
+
+print("✓ Heatmap saved:",heat_output)
+print("✓ Trend chart saved:",chart_output)
