@@ -45,3 +45,15 @@ Technologies used:
 ---
 
 ## Project Architecture
+    CSV Crime Data
+         │
+         ▼
+    Upload to HDFS
+         │
+         ▼
+    PySpark Processing
+         │
+         ▼
+Data Aggregation & Cleaning
+         │
+         ▼
