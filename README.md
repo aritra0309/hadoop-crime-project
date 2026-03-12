@@ -113,13 +113,43 @@ hadoop-crime-project/
 ---
 
 # Setup Instructions
+## Prerequisites
+
+Ensure the following software is installed before running the project.
+
+| Software | Recommended Version | Purpose |
+|--------|--------|--------|
+| Python | 3.10 | Running data processing scripts |
+| Apache Hadoop | 3.3+ | Distributed storage using HDFS |
+| Apache Spark | 3.5+ | Distributed data processing |
+| Java | 8 or 11 | Required for Hadoop and Spark |
+| pip | Latest | Install Python dependencies |
+
+---
+
+### Verify Installation
+
+Run the following commands to confirm everything is installed correctly.
+
+```bash
+python --version
+hadoop version
+spark-submit --version
+java -version
+```
+### Install Python Dependencies
+
+Run the following command to install all required Python packages.
+
+```bash
+pip install -r requirements.txt
+```
 
 ## 1. Clone the Repository
 
 ```bash
 git clone https://github.com/aritra0309/hadoop-crime-project.git
 cd hadoop-crime-project
-```
 
 ---
 
