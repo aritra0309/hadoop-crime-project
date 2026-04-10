@@ -51,8 +51,6 @@ flowchart LR
 - `17_Crime_by_place_of_occurrence_2014.csv`
 - `india_states.geojson`
 
-## Dashboard Screenshot
-![Dashboard Preview](dashboard/assets/dashboard_screenshot.svg)
 
 ## Tech Stack
 - Python 3
