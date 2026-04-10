@@ -205,7 +205,7 @@ scikit-learn          # Required by analytics (Ridge, GBR, TimeSeriesSplit)
 ### 1. Clone the repository
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/aritra0309/hadoop-crime-project
 cd hadoop-crime-project
 ```
 
