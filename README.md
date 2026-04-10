@@ -75,7 +75,7 @@ graph TB
     end
 
     subgraph "Phase 3 — Visualization"
-        G --> H["scripts/visualization.py<br/><i>python</i>"]
+        G --> H["src/visualization.py<br/><i>python</i>"]
         I["data/india_states.geojson"] --> H
         H -->|"Inline data injection<br/>Leaflet + Chart.js"| J["dashboard/index.html<br/><i>Self-contained (23.8 MB)</i>"]
         H --> K["output/<br/>crime_heatmap_year.html<br/>state_trend_chart.html"]
@@ -125,7 +125,7 @@ src/analytics.py (spark-submit)             ← Phase 2: ML & analytics
          └── supplementary.json
               │
               ▼
-scripts/visualization.py (python)           ← Phase 3: Dashboard generation
+src/visualization.py (python)           ← Phase 3: Dashboard generation
   │
   ├──▶ dashboard/index.html                 (Self-contained, 23.8 MB)
   ├──▶ output/crime_heatmap_year.html       (Folium choropleth)
@@ -253,7 +253,7 @@ Ingests 18 CSVs from HDFS, normalizes schemas, standardizes state names, filters
 ```bash
 spark-submit \
   --master local[*] \
-  scripts/data_preparation.py
+  src/data_preparation.py
 ```
 
 **Outputs:**
@@ -267,7 +267,7 @@ Runs KMeans clustering, crime composition analysis, Women Safety Index, property
 ```bash
 spark-submit \
   --master local[*] \
-  scripts/analytics.py
+  src/analytics.py
 ```
 
 **Outputs:**
@@ -279,7 +279,7 @@ spark-submit \
 Reads the 7 JSON files and GeoJSON, then generates the self-contained HTML dashboard.
 
 ```bash
-python scripts/visualization.py
+python src/visualization.py
 ```
 
 **Outputs:**
@@ -436,7 +436,7 @@ hadoop-crime-project/
 │   ├── state_mapping.py                        # STATE_NAME_MAP + CANONICAL_TO_GEOJSON (214 lines)
 │   └── utils.py                                # Shared utilities & helpers (145 lines)
 │
-├── 📂 scripts/                                 # Pipeline entry points
+├── 📂 src/                                 # Pipeline entry points
 │   ├── data_preparation.py                     # spark-submit entry for Phase 1 (589 lines)
 │   ├── analytics.py                            # spark-submit entry for Phase 2 (575 lines)
 │   └── visualization.py                        # Phase 3: Dashboard HTML generation (1571 lines)

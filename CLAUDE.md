@@ -32,13 +32,13 @@ Scripts must be run **in order** — each depends on the outputs of the previous
 
 ```bash
 # Step 1: Clean and prepare all 8 datasets, join into master table
-spark-submit scripts/data_preparation.py
+spark-submit src/data_preparation.py
 
 # Step 2: Run analytics (clustering, forecasting, composition, women safety index)
-spark-submit scripts/analytics.py
+spark-submit src/analytics.py
 
 # Step 3: Generate interactive visualizations
-spark-submit scripts/visualization.py
+spark-submit src/visualization.py
 ```
 
 ## Architecture
