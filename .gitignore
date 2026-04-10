@@ -1,12 +1,18 @@
-spark-warehouse/
+# Spark / Hive generated
 metastore_db/
+spark-warehouse/
 derby.log
 hive/
+
+# Pipeline outputs
 output/
-__pycache__/
-# ignore various generated artifacts
+
+# Logs
 *.log
-*.html
-# explicitly ignore map and analysis output
 analysis.log
-crime_hotspots_map.html
+
+# Python
+__pycache__/
+
+# macOS
+.DS_Store

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="800" viewBox="0 0 1400 800" role="img" aria-label="Dashboard preview mock">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fef4df"/>
+      <stop offset="100%" stop-color="#edf6ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="800" fill="url(#bg)"/>
+  <rect x="40" y="30" width="1320" height="80" rx="14" fill="#ffffff" stroke="#d9ddd3"/>
+  <text x="70" y="72" font-family="Segoe UI, Arial, sans-serif" font-size="28" fill="#20231f" font-weight="700">India Crime Intelligence Platform</text>
+  <text x="70" y="95" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#66706a">Interactive dashboard preview</text>
+
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#5a2d00" font-weight="700">
+    <rect x="60" y="130" width="200" height="36" rx="8" fill="#ffe2c4" stroke="#c66a1f"/>
+    <text x="85" y="153">1. India Overview</text>
+    <rect x="272" y="130" width="200" height="36" rx="8" fill="#ffffff" stroke="#d9ddd3"/>
+    <text x="302" y="153" fill="#66706a">2. Districts</text>
+    <rect x="484" y="130" width="200" height="36" rx="8" fill="#ffffff" stroke="#d9ddd3"/>
+    <text x="514" y="153" fill="#66706a">3. Women Safety</text>
+    <rect x="696" y="130" width="200" height="36" rx="8" fill="#ffffff" stroke="#d9ddd3"/>
+    <text x="726" y="153" fill="#66706a">4. Forecasting</text>
+    <rect x="908" y="130" width="200" height="36" rx="8" fill="#ffffff" stroke="#d9ddd3"/>
+    <text x="938" y="153" fill="#66706a">5. Profiles</text>
+    <rect x="1120" y="130" width="200" height="36" rx="8" fill="#ffffff" stroke="#d9ddd3"/>
+    <text x="1150" y="153" fill="#66706a">6. Clusters</text>
+  </g>
+
+  <rect x="60" y="190" width="850" height="560" rx="14" fill="#ffffff" stroke="#d9ddd3"/>
+  <rect x="86" y="245" width="800" height="480" rx="10" fill="#f1f3ec" stroke="#d9ddd3"/>
+  <text x="110" y="230" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#66706a">Choropleth map + controls</text>
+
+  <g>
+    <rect x="945" y="190" width="375" height="175" rx="14" fill="#ffffff" stroke="#d9ddd3"/>
+    <text x="970" y="220" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#20231f" font-weight="700">State Detail Card</text>
+    <rect x="970" y="240" width="150" height="46" rx="8" fill="#f1f3ec"/>
+    <rect x="1138" y="240" width="150" height="46" rx="8" fill="#f1f3ec"/>
+    <rect x="970" y="300" width="150" height="46" rx="8" fill="#f1f3ec"/>
+    <rect x="1138" y="300" width="150" height="46" rx="8" fill="#f1f3ec"/>
+  </g>
+
+  <g>
+    <rect x="945" y="385" width="375" height="365" rx="14" fill="#ffffff" stroke="#d9ddd3"/>
+    <text x="970" y="418" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#20231f" font-weight="700">Charts + Insights</text>
+    <polyline points="970,670 1020,620 1080,640 1145,560 1200,595 1285,510" fill="none" stroke="#c66a1f" stroke-width="4"/>
+    <circle cx="1020" cy="620" r="5" fill="#c66a1f"/>
+    <circle cx="1080" cy="640" r="5" fill="#c66a1f"/>
+    <circle cx="1145" cy="560" r="5" fill="#c66a1f"/>
+    <circle cx="1200" cy="595" r="5" fill="#c66a1f"/>
+    <circle cx="1285" cy="510" r="5" fill="#c66a1f"/>
+  </g>
+</svg>

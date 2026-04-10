@@ -1,226 +1,63 @@
-# Hadoop Crime Analysis Project
+# India Crime Intelligence Platform
 
-![Python](https://img.shields.io/badge/Python-3.x-blue)
-![Hadoop](https://img.shields.io/badge/Hadoop-HDFS-orange)
-![PySpark](https://img.shields.io/badge/PySpark-Big%20Data-red)
-![Status](https://img.shields.io/badge/Status-Active-success)
+PySpark-based analytics platform over 15 NCRB datasets (2001-2014) with a self-contained interactive dashboard (`dashboard/index.html`) covering national overview, district hotspots, women safety, forecasting, crime profiles, and clustering insights.
 
-A big data pipeline that analyzes multi-year crime datasets using the Hadoop ecosystem.  
-The project demonstrates distributed data storage, large-scale processing with PySpark, and geographic crime visualization.
-
----
-
-# Overview
-
-Crime datasets across multiple years and districts can become too large to process efficiently using traditional tools.
-
-This project uses the **Hadoop ecosystem** to process and analyze large crime datasets by:
-
-- Storing raw data in **HDFS**
-- Processing data using **PySpark**
-- Aggregating crime statistics across states and districts
-- Visualizing crime trends using heatmaps and charts
-
-The result is a scalable pipeline capable of analyzing large crime datasets efficiently.
-
----
-
-# Problem Statement
-
-Crime data is often spread across multiple files and years. Traditional analysis tools struggle to efficiently process and visualize large datasets.
-
-This project demonstrates how **distributed computing frameworks like Hadoop and Spark can be used to efficiently process large crime datasets and generate meaningful insights.**
-
----
-
-# Dataset
-
-The dataset consists of multiple CSV files containing crime statistics across Indian states and districts over multiple years.
-
-Typical attributes include:
-
-- **State**
-- **District**
-- **Year**
-- **Crime Type**
-- **Number of Cases**
-
-The raw CSV datasets are uploaded to **HDFS** before being processed by PySpark.
-
----
-
-# Tech Stack
-
-### Languages
-- Python
-
-### Big Data Technologies
-- Apache Hadoop
-- HDFS
-- PySpark
-
-### Data Processing
-- Pandas
-
-### Visualization
-- Folium
-- Interactive heatmaps
-
----
-
-# Project Architecture
-
+## Architecture
 ```mermaid
-graph TD
-A[CSV Crime Data] --> B[Upload to HDFS]
-B --> C[PySpark Processing]
-C --> D[Data Aggregation & Cleaning]
-D --> E[Visualization - Heatmaps & Trends]
+flowchart LR
+  A[Raw NCRB CSVs + GeoJSON] --> B[src/data_preparation.py]
+  B --> C[HDFS: district_master/state_master Parquet]
+  C --> D[src/analytics.py]
+  D --> E[output/dashboard_data/*.json]
+  E --> F[scripts/visualization.py]
+  F --> G[dashboard/index.html]
 ```
 
----
+## How To Run
+1. Ensure Hadoop + Spark are running and HDFS is accessible at `hdfs://localhost:9000`.
+2. Put CSV inputs in `data/`.
+3. Run Phase 1 preparation:
+   ```bash
+   python3 src/data_preparation.py
+   ```
+4. Run Phase 2 analytics:
+   ```bash
+   python3 src/analytics.py
+   ```
+5. Generate dashboard HTML (Phase 4):
+   ```bash
+   python3 scripts/visualization.py
+   ```
+6. Open:
+   - `dashboard/index.html`
 
-# Project Structure
+## Datasets Used
+- `01_District_wise_crimes_committed_IPC_2001_2012.csv`
+- `01_District_wise_crimes_committed_IPC_2013.csv`
+- `01_District_wise_crimes_committed_IPC_2014.csv`
+- `42_District_wise_crimes_committed_against_women_2001_2012.csv`
+- `42_District_wise_crimes_committed_against_women_2013.csv`
+- `42_District_wise_crimes_committed_against_women_2014.csv`
+- `42_Cases_under_crime_against_women.csv`
+- `10_Property_stolen_and_recovered.csv`
+- `30_Auto_theft.csv`
+- `31_Serious_fraud.csv`
+- `32_Murder_victim_age_sex.csv`
+- `33_CH_not_murder_victim_age_sex.csv`
+- `34_Use_of_fire_arms_in_murder_cases.csv`
+- `39_Specific_purpose_of_kidnapping_and_abduction.csv`
+- `17_Crime_by_place_of_occurrence_2001_2012.csv`
+- `17_Crime_by_place_of_occurrence_2013.csv`
+- `17_Crime_by_place_of_occurrence_2014.csv`
+- `india_states.geojson`
 
-```
-hadoop-crime-project/
-│
-├── data/                  # Raw crime datasets
-│
-├── scripts/
-│   ├── preprocessing.py   # Data cleaning and preparation
-│   ├── analysis.py        # Crime data aggregation
-│   └── visualization.py   # Heatmap and visualization generation
-│
-├── output/                # Processed datasets
-│
-├── notebooks/             # Optional exploratory analysis
-│
-└── README.md
-```
+## Dashboard Screenshot
+![Dashboard Preview](dashboard/assets/dashboard_screenshot.svg)
 
----
-
-# Features
-
-- Multi-year crime dataset processing
-- Distributed data storage using HDFS
-- Parallel data processing with PySpark
-- Aggregation of crime statistics by district and year
-- Interactive geographic heatmap visualization
-- Crime trend analysis over time
-
----
-
-# Setup Instructions
-## Prerequisites
-
-Ensure the following software is installed before running the project.
-
-| Software | Recommended Version | Purpose |
-|--------|--------|--------|
-| Python | 3.10 | Running data processing scripts |
-| Apache Hadoop | 3.3+ | Distributed storage using HDFS |
-| Apache Spark | 3.5+ | Distributed data processing |
-| Java | 8 or 11 | Required for Hadoop and Spark |
-| pip | Latest | Install Python dependencies |
-
----
-
-### Verify Installation
-
-Run the following commands to confirm everything is installed correctly.
-
-```bash
-python --version
-hadoop version
-spark-submit --version
-java -version
-```
-### Install Python Dependencies
-
-Run the following command to install all required Python packages.
-
-```bash
-pip install -r requirements.txt
-```
-
-## 1. Clone the Repository
-
-```bash
-git clone https://github.com/aritra0309/hadoop-crime-project.git
-cd hadoop-crime-project
-
----
-
-## 2. Start Hadoop
-
-```bash
-start-dfs.sh
-start-yarn.sh
-```
-
----
-
-## 3. Upload Data to HDFS
-
-```bash
-hdfs dfs -mkdir /crime-data
-hdfs dfs -put data/*.csv /crime-data
-```
-
----
-
-## 4. Run Data Processing
-
-```bash
-python scripts/data_preparation.py
-```
-
----
-## 5. Run Analysis
-
-```bash
-python scripts/analytics.py
-```
-
----
-
-## 5. Generate Visualization
-
-```bash
-python scripts/visualization.py
-```
-
-This generates **interactive crime heatmaps and trend visualizations.**
-
----
-
-# Results
-
-The pipeline produces:
-
-- Aggregated crime statistics
-- District-level crime distribution
-- Year-wise crime trends
-- Interactive geographic crime heatmaps
-
-These visualizations help identify **crime hotspots and long-term patterns.**
-
----
-
-# Future Improvements
-
-- Machine learning for crime prediction
-- Interactive dashboard using Streamlit or Dash
-- Real-time crime data processing
-- Deployment on a distributed Hadoop cluster
-
----
-
-# Author
-
-**Aritra**
-
-GitHub  
-https://github.com/aritra0309
+## Tech Stack
+- Python 3
+- PySpark (Spark SQL + MLlib)
+- NumPy / Pandas / scikit-learn
+- HTML + CSS + JavaScript
+- Chart.js
+- Leaflet
