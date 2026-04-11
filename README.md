@@ -479,7 +479,3 @@ hadoop-crime-project/
 This project uses publicly available data from the [National Crime Records Bureau (NCRB)](https://ncrb.gov.in/), Government of India.
 
 ---
-
-<p align="center">
-  Built with ❤️ using PySpark, Hadoop HDFS, and way too many CSV files.
-</p>
