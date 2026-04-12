@@ -481,4 +481,4 @@ This project uses publicly available data from the [National Crime Records Burea
 ---
 ---
 
-###  Done by Aritra Sarkar, Varshin s and Shaheen Ali
+###  Done by Aritra Sarkar, Varshin S and Shaheen Ali
