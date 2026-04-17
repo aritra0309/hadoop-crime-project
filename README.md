@@ -220,6 +220,8 @@ pip install scikit-learn   # Not listed in requirements.txt but required
 
 ```bash
 # Confirm Spark is available
+
+![CI Pipeline](https://github.com/aritra0309/hadoop-crime-project/actions/workflows/ci.yml/badge.svg)
 spark-submit --version
 
 # Confirm HDFS is running
