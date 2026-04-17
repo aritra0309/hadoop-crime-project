@@ -17,6 +17,10 @@
 \usepackage{setspace}
 \usepackage{titlesec}
 \usepackage{fancyhdr}
+\usepackage{amssymb}
+\usepackage{pifont}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{--}
 \usepackage{natbib}
 
 % Spacing
@@ -61,7 +65,8 @@
 
 {\large Aritra Sarkar\textsuperscript{1,*}, Shaheen Ali\textsuperscript{1}, Varshini S\textsuperscript{1}}\\[4pt]
 {\small \textsuperscript{1}School of Advanced Sciences, Vellore Institute of Technology (VIT), Vellore, Tamil Nadu, India}\\
-{\small \textsuperscript{*}Corresponding author: \href{mailto:aritra.sarkar2022@vitstudent.ac.in}{aritra.sarkar2022@vitstudent.ac.in}}
+{\small \textsuperscript{*}Corresponding author: \href{mailto:aritra.sarkar2022@vitstudent.ac.in}{aritra.sarkar2022@vitstudent.ac.in}}\\[2pt]
+{\small \href{mailto:shaheen.ali2022@vitstudent.ac.in}{shaheen.ali2022@vitstudent.ac.in}, \href{mailto:varshini.s2022b@vitstudent.ac.in}{varshini.s2022b@vitstudent.ac.in}}
 
 \vspace{4pt}
 \hrule
@@ -233,19 +238,19 @@ This provisions a Spark environment, loads all 18 datasets into HDFS, runs the t
 \hline
 \textbf{Feature} & \textbf{Ours} & \textbf{Pandas} & \textbf{Tableau} & \textbf{QGIS} & \textbf{R/tidyverse} \\
 \hline
-NCRB-specific harmonization & \checkmark & -- & -- & -- & -- \\
+NCRB-specific harmonization & \cmark & -- & -- & -- & -- \\
 \hline
-Distributed (Spark/HDFS) & \checkmark & -- & -- & -- & -- \\
+Distributed (Spark/HDFS) & \cmark & -- & -- & -- & -- \\
 \hline
-ML clustering + forecasting & \checkmark & Partial & -- & -- & \checkmark \\
+ML clustering + forecasting & \cmark & Partial & -- & -- & \cmark \\
 \hline
-Interactive choropleth maps & \checkmark & -- & \checkmark & \checkmark & Partial \\
+Interactive choropleth maps & \cmark & -- & \cmark & \cmark & Partial \\
 \hline
-Open source & \checkmark & \checkmark & -- & \checkmark & \checkmark \\
+Open source & \cmark & \cmark & -- & \cmark & \cmark \\
 \hline
-Docker one-command deploy & \checkmark & -- & -- & -- & -- \\
+Docker one-command deploy & \cmark & -- & -- & -- & -- \\
 \hline
-End-to-end pipeline & \checkmark & -- & -- & -- & -- \\
+End-to-end pipeline & \cmark & -- & -- & -- & -- \\
 \hline
 \end{tabularx}
 \caption{Feature comparison with existing tools for Indian crime data analysis.}
