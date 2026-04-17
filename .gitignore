@@ -9,10 +9,31 @@ output/
 
 # Logs
 *.log
-analysis.log
 
 # Python
 __pycache__/
+*.pyc
 
 # macOS
 .DS_Store
+
+# LaTeX build artifacts
+*.aux
+*.out
+*.bbl
+*.blg
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+
+# Draft / template PDFs
+SoftwareX_Draft_*.pdf
+softwarex_template.pdf
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Claude Code
+CLAUDE.md

@@ -6,6 +6,8 @@
 \usepackage{mathptmx} % Times font
 \usepackage[margin=2.2cm]{geometry}
 \usepackage{graphicx}
+\usepackage{float}
+\graphicspath{{docs/screenshots/}}
 \usepackage{hyperref}
 \usepackage{booktabs}
 \usepackage{tabularx}
@@ -92,7 +94,7 @@ The India Crime Intelligence Platform is an open-source, PySpark-based big data 
 \hline
 \textbf{Nr} & \textbf{Code metadata description} & \textbf{Please fill in this column} \\
 \hline
-C1 & Current code version & v1.1.0 \\
+C1 & Current code version & v1.2.0 \\
 \hline
 C2 & Permanent link to code/repository & \url{https://github.com/aritra0309/hadoop-crime-project} \\
 \hline
@@ -214,19 +216,24 @@ The platform provides seven core functionalities:
 % Section 3
 \section{Illustrative Examples}
 
-\textbf{Example 1: Full pipeline execution.} The complete pipeline can be executed with Docker in a single command:
+\textbf{Example: Full pipeline execution and output.} The complete pipeline can be executed with Docker in a single command:
 
 \begin{verbatim}
 docker compose up --build
 \end{verbatim}
 
-This provisions a Spark environment, loads all 18 datasets into HDFS, runs the three-stage pipeline, and outputs the dashboard to the \texttt{output/} directory. Alternatively, users can run individual stages via \texttt{scripts/run\_pipeline\_local.sh}.
+This provisions a Spark environment, loads all 18 datasets into HDFS, runs the three-stage pipeline (data preparation, analytics, visualization), and outputs the interactive dashboard to the \texttt{output/} directory. Alternatively, users can run individual stages via \texttt{scripts/run\_pipeline\_local.sh}.
 
-\textbf{Example 2: Crime clustering output.} Running the analytics stage on violent crime data produces cluster assignments such as: Uttar Pradesh and Madhya Pradesh in a high-crime cluster, northeastern states in a low-crime cluster, and Maharashtra and Rajasthan in a mid-range cluster. The silhouette score for optimal $k$ selection is reported in the JSON output.
+The analytics stage produces several outputs: (i)~KMeans cluster assignments grouping states by crime profiles---for instance, Uttar Pradesh and Madhya Pradesh fall into a high-crime cluster while northeastern states form a low-crime cluster; (ii)~a women safety index computed as an inverse normalized score from crimes-against-women data; and (iii)~state-wise forecasts for 2015--2020 using model selection between Ridge polynomial regression and gradient boosting with time-series cross-validation.
 
-\textbf{Example 3: Choropleth dashboard.} The visualization stage generates an interactive map of India where states are colored by crime intensity. Users can hover over any state to see detailed crime statistics, toggle between different crime categories, and compare metrics across the 2001--2014 time period.
+The visualization stage generates an interactive choropleth map of India (Figure~\ref{fig:national_overview}) where states are colored by crime intensity. Users can hover over any state to view detailed statistics, toggle between crime categories, and navigate the 2001--2014 time period using a year selector. The state mapping module automatically resolves naming inconsistencies across datasets---for example, mapping ``Delhi UT'', ``Nct Of Delhi'', and ``Delhi'' to a canonical ``Delhi'' entry.
 
-\textbf{Example 4: State name resolution.} The state mapping module automatically resolves inconsistencies such as mapping ``Delhi UT'', ``Nct Of Delhi'', and ``Delhi'' to a canonical ``Delhi'' entry---a preprocessing step that would otherwise require manual inspection of each dataset.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{01_national_overview.png}
+\caption{National overview dashboard showing the interactive choropleth map with state-level crime statistics and year selector.}
+\label{fig:national_overview}
+\end{figure}
 
 \vspace{4pt}
 \noindent\textbf{Comparison with existing tools:}
