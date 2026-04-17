@@ -20,7 +20,7 @@ The India Crime Intelligence Platform is an open-source, PySpark-based big data 
 |----|---------------------------|----------|
 | C1 | Current code version | v1.0.0 |
 | C2 | Permanent link to code/repository used for this code version | https://github.com/aritraSarkar03/hadoop-crime-project |
-| C3 | Permanent link to reproducible capsule | https://doi.org/10.5281/zenodo.19631326 |
+| C3 | Permanent link to reproducible capsule | https://doi.org/10.5281/zenodo.19631449 |
 | C4 | Legal code license | MIT License |
 | C5 | Code versioning system used | Git |
 | C6 | Software code languages, tools, and services used | Python 3.8+, PySpark, Apache Hadoop HDFS |
