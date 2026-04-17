@@ -1,0 +1,19 @@
+# ============================================================
+# Docker Compose — India Crime Intelligence Platform
+# Run the full pipeline with: docker compose up
+# ============================================================
+
+version: "3.9"
+
+services:
+  crime-pipeline:
+    build: .
+    container_name: crime-intelligence-platform
+    volumes:
+      - ./output:/app/output          # Persist outputs to host
+      - ./data:/app/data:ro            # Mount data read-only
+    environment:
+      - SPARK_MODE=local
+      - PYSPARK_PYTHON=python3
+    ports:
+      - "8080:8080"                    # Dashboard access

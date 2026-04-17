@@ -3,3 +3,6 @@ pandas==2.2.2
 numpy==1.26.4
 folium==0.16.0
 branca==0.7.1
+
+# Testing
+pytest>=7.0.0
