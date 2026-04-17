@@ -1,8 +1,8 @@
 # India Crime Intelligence Platform: A PySpark Big Data Pipeline for Analyzing National Crime Statistics
 
-**Authors:** Aritra Sarkar¹ (aritra.sarkar2022@vitstudent.ac.in), Shaheen Ali¹ (shaheen.ali2022@vitstudent.ac.in), Varshini S¹ (varshini.s2022@vitstudent.ac.in)
+**Authors:** Aritra Sarkar¹ (aritra.sarkar2022@vitstudent.ac.in), Shaheen Ali¹ (shaheen.ali2022@vitstudent.ac.in), Varshini S¹ (varshini.s2022b@vitstudent.ac.in)
 
-¹ School of Computer Science and Engineering, Vellore Institute of Technology (VIT), Vellore, Tamil Nadu, India
+¹ School of Advanced Sciences, Vellore Institute of Technology (VIT), Vellore, Tamil Nadu, India
 
 ---
 
@@ -231,7 +231,7 @@ The India Crime Intelligence Platform addresses a tangible need in the Indian da
 
 The India Crime Intelligence Platform provides a complete, open-source big data pipeline for analyzing India's national crime statistics. By combining automated data harmonization, Spark-based scalable analytics (clustering, forecasting, composition analysis, safety indexing), and interactive visualization in a single modular framework, it addresses a gap in the existing landscape of crime analysis tools for Indian data.
 
-The current version (v1.0.0) processes 18 NCRB datasets spanning 2001–2014 across 36 states and union territories. Future development directions include:
+The current version (v1.1.0) processes 18 NCRB datasets spanning 2001–2014 across 36 states and union territories. Future development directions include:
 
 1. **Extended temporal coverage**: Incorporating NCRB data from 2015 onward as datasets become available in machine-readable formats.
 2. **Real-time data ingestion**: Adding support for streaming crime data sources via Spark Structured Streaming.
@@ -243,7 +243,7 @@ The current version (v1.0.0) processes 18 NCRB datasets spanning 2001–2014 acr
 
 ## Acknowledgements
 
-The authors would like to thank **Prof. Ashish Bhatt** (ashish.bhatt@vit.ac.in), School of Computer Science and Engineering, Vellore Institute of Technology (VIT), Vellore, for his guidance and supervision of this project.
+The authors would like to thank **Prof. Ashish Bhatt** (ashish.bhatt@vit.ac.in), School of Advanced Sciences, Vellore Institute of Technology (VIT), Vellore, for his guidance and supervision of this project.
 
 ---
 
