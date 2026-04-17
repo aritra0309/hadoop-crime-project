@@ -212,3 +212,8 @@ def get_geojson_name(canonical_state):
         return CANONICAL_TO_GEOJSON[canonical_state]
     # Default: title case the canonical name
     return canonical_state.title()
+
+
+def get_state_name_mapping():
+    """Return the raw-to-canonical state name mapping dict."""
+    return STATE_NAME_MAP
