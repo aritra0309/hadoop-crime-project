@@ -9,6 +9,12 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/aritra0309/hadoop-crime-project/actions/workflows/ci.yml"><img src="https://github.com/aritra0309/hadoop-crime-project/actions/workflows/ci.yml/badge.svg" alt="CI Pipeline"/></a>
+  <a href="https://doi.org/10.5281/zenodo.19631449"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.19631449.svg" alt="DOI"/></a>
+  <img src="https://img.shields.io/badge/Version-v1.2.0-green" alt="Version"/>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white" alt="Python"/>
   <img src="https://img.shields.io/badge/Apache_Spark-3.5.3-E25A1C?logo=apachespark&logoColor=white" alt="Spark"/>
   <img src="https://img.shields.io/badge/Hadoop_HDFS-3.x-66CCFF?logo=apachehadoop&logoColor=black" alt="Hadoop"/>
@@ -31,10 +37,13 @@
 - [Prerequisites](#-prerequisites)
 - [Installation & Setup](#-installation--setup)
 - [How to Run](#-how-to-run)
+- [Docker](#-docker)
 - [Dashboard](#-dashboard)
 - [HDFS Paths Reference](#-hdfs-paths-reference)
 - [Key Design Patterns](#-key-design-patterns)
 - [Project Structure](#-project-structure)
+- [Testing & CI](#-testing--ci)
+- [License](#-license)
 
 ---
 
@@ -145,6 +154,8 @@ src/visualization.py (python)           ← Phase 3: Dashboard generation
 | **Geospatial** | Folium + Leaflet.js | Interactive choropleth heatmaps |
 | **Charting** | Chart.js | Bar, line, and radar charts in the dashboard |
 | **Dashboard** | HTML + CSS + JavaScript | Single self-contained file with inline data and six interactive tabs |
+| **Containerization** | Docker | Reproducible environment with Java 21 + Spark |
+| **CI/CD** | GitHub Actions | Automated testing, linting, and Docker builds |
 | **Language** | Python 3 | End-to-end pipeline |
 
 ---
@@ -180,23 +191,10 @@ All 18 datasets are sourced from the **National Crime Records Bureau (NCRB)** of
 
 | Requirement | Version | Notes |
 |---|---|---|
-| **Java** | 11 | Required by Spark — set `JAVA_HOME` |
+| **Java** | 11+ | Required by Spark — set `JAVA_HOME` |
 | **Apache Spark** | 3.5.3 | With PySpark; set `SPARK_HOME` |
 | **Hadoop HDFS** | 3.x | Running locally on `hdfs://localhost:9000` |
 | **Python** | 3.x | 3.10+ recommended |
-
-### Python Dependencies
-
-```
-pyspark==3.5.1
-pandas==2.2.2
-numpy==1.26.4
-folium==0.16.0
-branca==0.7.1
-scikit-learn          # Required by analytics (Ridge, GBR, TimeSeriesSplit)
-```
-
-> ⚠️ **Note:** `scikit-learn` is used in the analytics phase but is currently missing from `requirements.txt`. Install it manually.
 
 ---
 
@@ -213,15 +211,13 @@ cd hadoop-crime-project
 
 ```bash
 pip install -r requirements.txt
-pip install scikit-learn   # Not listed in requirements.txt but required
+pip install scikit-learn   # Required by analytics phase
 ```
 
 ### 3. Verify Spark and Hadoop
 
 ```bash
 # Confirm Spark is available
-
-![CI Pipeline](https://github.com/aritra0309/hadoop-crime-project/actions/workflows/ci.yml/badge.svg)
 spark-submit --version
 
 # Confirm HDFS is running
@@ -297,6 +293,25 @@ open dashboard/index.html
 python -m http.server 8080 --directory dashboard/
 # then visit http://localhost:8080
 ```
+
+---
+
+## 🐳 Docker
+
+You can also run the platform in a container without installing Spark or Java locally:
+
+```bash
+# Build the image
+docker build -t crime-intelligence-platform .
+
+# Run the full pipeline
+docker run --rm crime-intelligence-platform
+
+# Or use docker-compose
+docker-compose up
+```
+
+The Dockerfile includes Java 21, Spark 3.5.3, and all Python dependencies pre-installed.
 
 ---
 
@@ -431,19 +446,26 @@ hadoop-crime-project/
 │   ├── 42_District_wise_crimes_committed_against_women_2014.csv
 │   └── india_states.geojson                    # State/UT boundary polygons (36 regions)
 │
-├── 📂 src/                                     # Core Python modules
+├── 📂 src/                                     # Core pipeline modules
 │   ├── __init__.py
-│   ├── data_preparation.py                     # Phase 1: Ingestion, cleaning, joins (877 lines)
-│   ├── analytics.py                            # Phase 2: ML analytics engine (1187 lines)
-│   ├── state_mapping.py                        # STATE_NAME_MAP + CANONICAL_TO_GEOJSON (214 lines)
-│   └── utils.py                                # Shared utilities & helpers (145 lines)
+│   ├── data_preparation.py                     # Phase 1: Ingestion, cleaning, joins
+│   ├── analytics.py                            # Phase 2: ML analytics engine
+│   ├── visualization.py                        # Phase 3: Dashboard HTML generation
+│   ├── state_mapping.py                        # STATE_NAME_MAP + CANONICAL_TO_GEOJSON
+│   └── utils.py                                # Shared utilities & helpers
 │
-├── 📂 src/                                 # Pipeline entry points
-│   ├── data_preparation.py                     # spark-submit entry for Phase 1 (589 lines)
-│   ├── analytics.py                            # spark-submit entry for Phase 2 (575 lines)
-│   └── visualization.py                        # Phase 3: Dashboard HTML generation (1571 lines)
+├── 📂 tests/                                   # Test suite
+│   ├── __init__.py
+│   ├── conftest.py
+│   ├── test_data_integrity.py
+│   ├── test_state_mapping.py
+│   └── test_utils.py
 │
-├── 📂 docs/                                     # Documentation assets
+├── 📂 scripts/                                 # Helper scripts
+│   ├── run_pipeline_local.sh                   # Run full pipeline locally
+│   └── run_tests.sh                            # Run test suite
+│
+├── 📂 docs/                                    # Documentation assets
 │   └── screenshots/                            # Dashboard screenshots (4 images)
 │       ├── 01_national_overview.png
 │       ├── 02_women_safety.png
@@ -455,24 +477,38 @@ hadoop-crime-project/
 │   └── assets/
 │       └── dashboard_screenshot.svg            # Dashboard preview image
 │
-├── 📂 output/                                  # Pipeline outputs
-│   ├── dashboard_data/                         # 7 JSON files for visualization
-│   │   ├── national_trends.json
-│   │   ├── district_analysis.json
-│   │   ├── women_safety.json
-│   │   ├── forecasts.json
-│   │   ├── crime_profiles.json
-│   │   ├── clusters.json
-│   │   └── supplementary.json
-│   ├── crime_heatmap_year.html                 # Standalone Folium choropleth
-│   ├── state_trend_chart.html                  # Standalone Chart.js trend chart
-│   └── cleaned_ipc_crime_data/                 # Spark CSV output partitions
+├── 📂 .github/workflows/                       # CI/CD
+│   └── ci.yml                                  # GitHub Actions: test, lint, Docker build
 │
+├── Dockerfile                                  # Container image (Java 21 + Spark + Python)
+├── docker-compose.yml                          # Docker Compose configuration
+├── .dockerignore                               # Docker build context exclusions
+├── .gitignore                                  # Git ignore rules
 ├── requirements.txt                            # Python dependencies
-├── CLAUDE.md                                   # AI assistant context
-├── WORKFLOW.md                                 # Development workflow notes
+├── softwarex_paper.tex                         # SoftwareX journal paper (LaTeX source)
+├── softwarex_paper.pdf                         # Compiled paper
+├── CONTRIBUTING.md                             # Contribution guidelines
+├── LICENSE.md                                  # License
 └── README.md                                   # ← You are here
 ```
+
+---
+
+## 🧪 Testing & CI
+
+The project includes a test suite and CI pipeline:
+
+```bash
+# Run tests locally
+bash scripts/run_tests.sh
+# or
+pytest tests/ -v
+```
+
+**GitHub Actions CI** (`.github/workflows/ci.yml`) runs on every push:
+- ✅ Unit tests (`pytest`)
+- ✅ Code linting
+- ✅ Docker image build & verification
 
 ---
 
@@ -481,6 +517,5 @@ hadoop-crime-project/
 This project uses publicly available data from the [National Crime Records Bureau (NCRB)](https://ncrb.gov.in/), Government of India.
 
 ---
----
 
-###  Done by Aritra Sarkar, Varshin S and Shaheen Ali
+### Done by Aritra Sarkar, Varshin S and Shaheen Ali
