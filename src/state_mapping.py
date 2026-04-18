@@ -91,6 +91,7 @@ CANONICAL_STATES = [
     "JHARKHAND",
     "KARNATAKA",
     "KERALA",
+    "LADAKH",
     "LAKSHADWEEP",
     "MADHYA PRADESH",
     "MAHARASHTRA",
@@ -259,8 +260,7 @@ def _load_yaml_mappings():
 
 def _try_yaml_override():
     """Override module-level dicts from YAML if available."""
-    global STATE_NAME_MAP, CANONICAL_STATES, CANONICAL_TO_GEOJSON
-    global AGGREGATE_STATE_PATTERNS, AGGREGATE_DISTRICT_PATTERNS
+    global CANONICAL_STATES, AGGREGATE_STATE_PATTERNS, AGGREGATE_DISTRICT_PATTERNS
 
     result = _load_yaml_mappings()
     if result is None:

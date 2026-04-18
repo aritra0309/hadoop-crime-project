@@ -49,10 +49,9 @@ state_name_map:
   "CHATTISGARH": "CHHATTISGARH"
 
   # Post-2019 additions (for future data)
-  "LADAKH": "LADAKH"
-  "THE DADRA AND NAGAR HAVELI AND DAMAN AND DIU": "DADRA & NAGAR HAVELI AND DAMAN & DIU"
-  "DNH AND DD": "DADRA & NAGAR HAVELI AND DAMAN & DIU"
-  "DNH & DD": "DADRA & NAGAR HAVELI AND DAMAN & DIU"
+  "THE DADRA AND NAGAR HAVELI AND DAMAN AND DIU": "DADRA & NAGAR HAVELI"
+  "DNH AND DD": "DADRA & NAGAR HAVELI"
+  "DNH & DD": "DADRA & NAGAR HAVELI"
 
 
 # ── Canonical States List ───────────────────────────────────────────────────
@@ -77,6 +76,7 @@ canonical_states:
   - "JHARKHAND"
   - "KARNATAKA"
   - "KERALA"
+  - "LADAKH"
   - "LAKSHADWEEP"
   - "MADHYA PRADESH"
   - "MAHARASHTRA"

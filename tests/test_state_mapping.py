@@ -63,7 +63,7 @@ class TestCanonicalStates:
     """Tests for the CANONICAL_STATES list."""
 
     def test_count_is_36(self):
-        assert len(CANONICAL_STATES) == 36
+        assert len(CANONICAL_STATES) == 37
 
     def test_no_duplicates(self):
         assert len(CANONICAL_STATES) == len(set(CANONICAL_STATES))
