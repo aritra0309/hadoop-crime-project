@@ -1,0 +1,47 @@
+\begin{tikzpicture}[
+    node distance=0.4cm and 0.3cm,
+    stage/.style={rectangle, rounded corners=4pt, draw=#1!60, fill=#1!8, 
+        text width=12cm, minimum height=1.2cm, align=left, font=\small},
+    arrow/.style={-{Stealth[length=3mm]}, thick, color=arrowcolor},
+    label/.style={font=\footnotesize\ttfamily, color=gray}
+]
+
+% HDFS Layer
+\node[stage=green!70!black] (hdfs) {
+    \textbf{HDFS Storage Layer} \hfill \texttt{/crime\_data/}\\
+    18 CSV datasets + GeoJSON $\;\rightarrow\;$ Cleaned intermediate files $\;\rightarrow\;$ JSON analytics output
+};
+
+% Stage 1
+\node[stage=blue!70, below=0.35cm of hdfs] (s1) {
+    \textbf{Stage 1: Data Preparation} \hfill \texttt{src/data\_preparation.py}\\
+    Schema normalization $\bullet$ State name mapping (50+ variants) $\bullet$ Type casting $\bullet$ HDFS I/O
+};
+
+% Stage 2
+\node[stage=orange!70, below=0.35cm of s1] (s2) {
+    \textbf{Stage 2: Analytics Engine} \hfill \texttt{src/analytics.py}\\
+    KMeans clustering $\bullet$ Ridge regression forecasting $\bullet$ Women safety index $\bullet$ Crime composition
+};
+
+% Stage 3
+\node[stage=purple!70, below=0.35cm of s2] (s3) {
+    \textbf{Stage 3: Visualization} \hfill \texttt{dashboard/generate\_dashboard.py}\\
+    Folium choropleth maps $\bullet$ Interactive trend charts $\bullet$ Standalone HTML dashboard
+};
+
+% Utilities
+\node[stage=gray, below=0.35cm of s3] (util) {
+    \textbf{Shared Utilities} \hfill \texttt{src/utils.py + src/state\_mapping.py}\\
+    Spark session management $\bullet$ HDFS helpers $\bullet$ State name canonicalization
+};
+
+% Arrows
+\draw[arrow] (hdfs.south) -- (s1.north);
+\draw[arrow] (s1.south) -- (s2.north);
+\draw[arrow] (s2.south) -- (s3.north);
+\draw[arrow, dashed, gray] (util.north west) -- (s1.south west);
+\draw[arrow, dashed, gray] (util.north) -- (s2.south);
+\draw[arrow, dashed, gray] (util.north east) -- (s3.south east);
+
+\end{tikzpicture}

@@ -36,11 +36,20 @@ except ModuleNotFoundError:
     )
 
 
+# Phase 7: config + validation imports
+try:
+    from src.config_loader import load_config, get_config
+except ModuleNotFoundError:
+    from config_loader import load_config, get_config
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 
-HDFS_INPUT = "hdfs://localhost:9000/crime/input"
-HDFS_OUTPUT = "hdfs://localhost:9000/crime/output"
+from src.config_loader import get_config
+_cfg = get_config()
+HDFS_INPUT = _cfg.hdfs_input
+HDFS_OUTPUT = _cfg.hdfs_output
 
 
 def ensure_directories() -> None:
@@ -189,7 +198,7 @@ def normalize_ipc_district(df: DataFrame) -> DataFrame:
     for c in keep[3:]:
         df = df.withColumn(c, as_num(c))
 
-    return df.filter(F.col("year").between(2001, 2014))
+    return df
 
 
 def normalize_women_district(df: DataFrame) -> DataFrame:
@@ -261,7 +270,7 @@ def normalize_women_district(df: DataFrame) -> DataFrame:
         + as_num("domestic_cruelty"),
     )
 
-    return df.filter(F.col("year").between(2001, 2014))
+    return df
 
 
 def build_district_master(spark: SparkSession) -> DataFrame:
@@ -283,12 +292,29 @@ def build_district_master(spark: SparkSession) -> DataFrame:
     ipc_metric_cols = [c for c in ipc_df.columns if c not in {"state", "district", "year"}]
     ipc_df = ipc_df.groupBy("state", "district", "year").agg(*[F.sum(c).alias(c) for c in ipc_metric_cols])
 
+    # Apply year range filter from config (auto-detect or fixed)
+    cfg = get_config()
+    if cfg.year_range_mode == 'auto':
+        _bounds = ipc_df.agg(F.min('year'), F.max('year')).collect()[0]
+        _min_yr, _max_yr = _bounds[0], _bounds[1]
+    else:
+        _min_yr, _max_yr = cfg.year_range_min, cfg.year_range_max
+    ipc_df = ipc_df.filter(F.col('year').between(_min_yr, _max_yr))
+
     women_df = None
     for f in women_files:
         d = normalize_women_district(read_hdfs_csv(spark, f))
         women_df = d if women_df is None else women_df.unionByName(d)
     women_metric_cols = [c for c in women_df.columns if c not in {"state", "district", "year"}]
     women_df = women_df.groupBy("state", "district", "year").agg(*[F.sum(c).alias(c) for c in women_metric_cols])
+
+    # Apply year range filter from config (auto-detect or fixed)
+    if cfg.year_range_mode == 'auto':
+        _bounds_w = women_df.agg(F.min('year'), F.max('year')).collect()[0]
+        _min_yr_w, _max_yr_w = _bounds_w[0], _bounds_w[1]
+    else:
+        _min_yr_w, _max_yr_w = cfg.year_range_min, cfg.year_range_max
+    women_df = women_df.filter(F.col('year').between(_min_yr_w, _max_yr_w))
 
     join_keys = ["state", "district", "year"]
 
@@ -842,13 +868,85 @@ def print_validation_report(
         print(f"  - {name}: {mn} to {mx}")
 
 
+def _emit_validation_warnings(df: DataFrame, label: str) -> None:
+    """Print warnings for data quality issues during pipeline run."""
+    total = df.count()
+    if total == 0:
+        print(f"  WARNING: {label} is empty (0 rows)")
+        return
+
+    # Check columns with >50% missing values
+    exprs = [
+        (F.sum(F.when(F.col(c).isNull(), F.lit(1)).otherwise(F.lit(0))) / F.lit(total)).alias(c)
+        for c in df.columns
+    ]
+    row = df.agg(*exprs).collect()[0].asDict()
+    for c in df.columns:
+        pct = float(row[c]) * 100
+        if pct > 50:
+            print(f"  WARNING: [{label}] Column \'{c}\' has {pct:.1f}% missing values (>50%)")
+
+    # Check years with suspiciously few data points (if year column exists)
+    if "year" in df.columns:
+        year_counts = (
+            df.groupBy("year")
+            .count()
+            .orderBy("year")
+            .collect()
+        )
+        if year_counts:
+            counts = [r["count"] for r in year_counts]
+            median_count = sorted(counts)[len(counts) // 2]
+            threshold = max(median_count * 0.1, 5)
+            for r in year_counts:
+                if r["count"] < threshold:
+                    print(f"  WARNING: [{label}] Year {r['year']} has only {r['count']} rows (median={median_count})")
+
+    # Check for unknown state names (basic check)
+    if "state" in df.columns:
+        known_states = {
+            "andhra pradesh", "arunachal pradesh", "assam", "bihar", "chhattisgarh",
+            "goa", "gujarat", "haryana", "himachal pradesh", "jammu & kashmir",
+            "jharkhand", "karnataka", "kerala", "madhya pradesh", "maharashtra",
+            "manipur", "meghalaya", "mizoram", "nagaland", "odisha", "punjab",
+            "rajasthan", "sikkim", "tamil nadu", "telangana", "tripura",
+            "uttar pradesh", "uttarakhand", "west bengal",
+            "andaman & nicobar islands", "chandigarh", "dadra & nagar haveli",
+            "daman & diu", "delhi", "lakshadweep", "puducherry",
+            "a & n islands", "d & n haveli", "delhi ut",
+        }
+        state_vals = [r["state"] for r in df.select("state").distinct().collect()]
+        for s in state_vals:
+            if s and s.lower() not in known_states:
+                print(f"  WARNING: [{label}] Unknown state name: \'{s}\'")
+
+
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Crime Data Preparation Pipeline')
+    parser.add_argument('--config', default=None, help='Path to config.yaml')
+    parser.add_argument('--years', default=None, help='Year range override, e.g. 2001-2021')
+    parser.add_argument('--output-dir', default=None, help='Output directory override')
+    args = parser.parse_args()
+
+    # Build CLI overrides dict
+    cli_overrides = {}
+    if args.years:
+        parts = args.years.split('-')
+        cli_overrides['year_range'] = {'mode': 'fixed', 'min_year': int(parts[0]), 'max_year': int(parts[1])}
+    if args.output_dir:
+        cli_overrides['paths'] = {'output_dir': args.output_dir}
+
+    load_config(config_path=args.config, cli_overrides=cli_overrides if cli_overrides else None)
+    cfg = get_config()
+
     spark = (
-        SparkSession.builder.appName("Crime Data Preparation Phase0-1")
-        .config("spark.sql.shuffle.partitions", "8")
+        SparkSession.builder.appName(cfg.spark_app_name_prep)
+        .config("spark.sql.shuffle.partitions", str(cfg.spark_shuffle_partitions))
         .getOrCreate()
     )
-    spark.sparkContext.setLogLevel("ERROR")
+    spark.sparkContext.setLogLevel(cfg.spark_log_level)
 
     try:
         ensure_directories()
@@ -857,6 +955,13 @@ def main() -> None:
 
         district_master = build_district_master(spark)
         state_master, supplementary_coverage = build_state_master(spark, district_master)
+
+        # Phase 7: Emit validation warnings
+        print("\n" + "=" * 60)
+        print("VALIDATION WARNINGS")
+        print("=" * 60)
+        _emit_validation_warnings(district_master, "district_master")
+        _emit_validation_warnings(state_master, "state_master")
 
         print_validation_report(
             district_master,

@@ -3,7 +3,7 @@
 # Runs the full pipeline on Spark local mode (no HDFS required)
 # ============================================================
 
-FROM python:3.11-slim
+FROM python:3.11.9-slim-bookworm
 
 # Install Java (required by Spark)
 RUN apt-get update && \

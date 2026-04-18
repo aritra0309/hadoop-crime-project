@@ -1,0 +1,83 @@
+# =============================================================================
+# India Crime Intelligence Platform — Central Configuration (v1.3)
+# =============================================================================
+# All configurable values in one place. Modules read from this file via
+# src/config_loader.py. CLI arguments override these values.
+# =============================================================================
+
+# ── HDFS / Storage ──────────────────────────────────────────────────────────
+hdfs:
+  base_url: "hdfs://localhost:9000"
+  input_path: "/crime/input"
+  output_path: "/crime/output"
+  cleaned_path: "/crime/output"          # where district_master / state_master go
+
+# ── Year Range ──────────────────────────────────────────────────────────────
+# Set to "auto" to detect from data, or specify explicit bounds.
+year_range:
+  mode: "auto"                           # "auto" | "fixed"
+  min_year: 2001                         # used only when mode == "fixed"
+  max_year: 2014                         # used only when mode == "fixed"
+
+# ── Forecast Settings ───────────────────────────────────────────────────────
+forecast:
+  horizon: 6                             # how many years beyond max_year to predict
+  polynomial_degrees: [2, 3]             # degrees to try in polynomial regression
+  ridge_alphas: [10.0, 50.0]            # Ridge alpha values paired with degrees
+  cv_splits: 3                           # TimeSeriesSplit n_splits
+  min_observations_for_cv: 6             # fall back to default model below this
+
+# ── KMeans Clustering ───────────────────────────────────────────────────────
+kmeans:
+  k_min: 2
+  k_max: 8
+  seed: 42
+  max_iterations: 20
+
+# ── File Paths ──────────────────────────────────────────────────────────────
+paths:
+  geojson: "data/india_states.geojson"
+  data_dir: "data"
+  output_dir: "output/dashboard_data"
+  dashboard_dir: "dashboard"
+
+# ── Spark Settings ──────────────────────────────────────────────────────────
+spark:
+  app_name_prep: "Crime Data Preparation Phase0-1"
+  app_name_analytics: "Crime Analytics Phase 2"
+  log_level: "ERROR"
+  shuffle_partitions: 8
+
+# ── Severity Weights (district analysis) ────────────────────────────────────
+severity_weights:
+  murder: 10
+  rape: 8
+  kidnapping: 6
+  dacoity: 5
+  robbery: 5
+  burglary: 2
+  theft: 1
+  riots: 3
+  arson: 4
+  dowry_deaths: 8
+
+# ── Cluster Labeling ───────────────────────────────────────────────────────
+cluster_labeling:
+  secondary_threshold_z: 0.75
+  secondary_features:
+    - feature: "avg_recovery_rate"
+      pos_label: "Efficient Recovery"
+      neg_label: "Low Recovery"
+    - feature: "avg_crimes_women"
+      pos_label: "High Women Crime"
+      neg_label: null
+    - feature: "avg_fraud"
+      pos_label: "High Fraud"
+      neg_label: null
+    - feature: "avg_firearms_murder"
+      pos_label: "High Firearms Use"
+      neg_label: null
+
+# ── Pipeline Metadata ──────────────────────────────────────────────────────
+pipeline:
+  version: "1.3.0"

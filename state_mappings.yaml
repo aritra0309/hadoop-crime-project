@@ -1,0 +1,184 @@
+# =============================================================================
+# State Name Mappings — India Crime Intelligence Platform v1.3
+# =============================================================================
+# Externalized version of state_mapping.py. Edit this file to add new state
+# name variants without touching Python code.
+#
+# Usage: state_mapping.py loads this YAML if present, falls back to hardcoded
+# values otherwise.
+# =============================================================================
+
+# ── Raw-to-Canonical Mapping ────────────────────────────────────────────────
+# Maps every observed state/UT name variant (UPPERCASED) to canonical form.
+# Before lookup: upper().strip().replace('"', '')
+# States that already match canonical after uppercasing are NOT listed.
+
+state_name_map:
+  # Andaman & Nicobar Islands
+  "A & N ISLANDS": "ANDAMAN & NICOBAR ISLANDS"
+  "A&N ISLANDS": "ANDAMAN & NICOBAR ISLANDS"
+  "ANDAMAN & NICOBAR": "ANDAMAN & NICOBAR ISLANDS"
+  "ANDAMAN AND NICOBAR": "ANDAMAN & NICOBAR ISLANDS"
+  "ANDAMAN AND NICOBAR ISLANDS": "ANDAMAN & NICOBAR ISLANDS"
+
+  # Dadra & Nagar Haveli
+  "D & N HAVELI": "DADRA & NAGAR HAVELI"
+  "D&N HAVELI": "DADRA & NAGAR HAVELI"
+  "DADRA AND NAGAR HAVELI": "DADRA & NAGAR HAVELI"
+
+  # Daman & Diu
+  "DAMAN AND DIU": "DAMAN & DIU"
+
+  # Delhi
+  "DELHI UT": "DELHI"
+  "NCT OF DELHI": "DELHI"
+
+  # Jammu & Kashmir
+  "JAMMU AND KASHMIR": "JAMMU & KASHMIR"
+
+  # Odisha
+  "ORISSA": "ODISHA"
+
+  # Puducherry
+  "PONDICHERRY": "PUDUCHERRY"
+
+  # Uttarakhand
+  "UTTARANCHAL": "UTTARAKHAND"
+
+  # Chhattisgarh
+  "CHATTISGARH": "CHHATTISGARH"
+
+  # Post-2019 additions (for future data)
+  "LADAKH": "LADAKH"
+  "THE DADRA AND NAGAR HAVELI AND DAMAN AND DIU": "DADRA & NAGAR HAVELI AND DAMAN & DIU"
+  "DNH AND DD": "DADRA & NAGAR HAVELI AND DAMAN & DIU"
+  "DNH & DD": "DADRA & NAGAR HAVELI AND DAMAN & DIU"
+
+
+# ── Canonical States List ───────────────────────────────────────────────────
+# All 36 states/UTs in the dataset (35 pre-2014 + Telangana from 2014).
+
+canonical_states:
+  - "ANDAMAN & NICOBAR ISLANDS"
+  - "ANDHRA PRADESH"
+  - "ARUNACHAL PRADESH"
+  - "ASSAM"
+  - "BIHAR"
+  - "CHANDIGARH"
+  - "CHHATTISGARH"
+  - "DADRA & NAGAR HAVELI"
+  - "DAMAN & DIU"
+  - "DELHI"
+  - "GOA"
+  - "GUJARAT"
+  - "HARYANA"
+  - "HIMACHAL PRADESH"
+  - "JAMMU & KASHMIR"
+  - "JHARKHAND"
+  - "KARNATAKA"
+  - "KERALA"
+  - "LAKSHADWEEP"
+  - "MADHYA PRADESH"
+  - "MAHARASHTRA"
+  - "MANIPUR"
+  - "MEGHALAYA"
+  - "MIZORAM"
+  - "NAGALAND"
+  - "ODISHA"
+  - "PUDUCHERRY"
+  - "PUNJAB"
+  - "RAJASTHAN"
+  - "SIKKIM"
+  - "TAMIL NADU"
+  - "TELANGANA"
+  - "TRIPURA"
+  - "UTTAR PRADESH"
+  - "UTTARAKHAND"
+  - "WEST BENGAL"
+
+
+# ── Canonical → GeoJSON NAME_1 Mapping ─────────────────────────────────────
+# GeoJSON uses "and" instead of "&", plus older names for some states.
+
+canonical_to_geojson:
+  "ANDAMAN & NICOBAR ISLANDS": "Andaman and Nicobar"
+  "DADRA & NAGAR HAVELI": "Dadra and Nagar Haveli"
+  "DAMAN & DIU": "Daman and Diu"
+  "JAMMU & KASHMIR": "Jammu and Kashmir"
+  "ODISHA": "Orissa"
+  "UTTARAKHAND": "Uttaranchal"
+
+
+# ── Aggregate Row Patterns ──────────────────────────────────────────────────
+# State-name patterns (UPPERCASED) that indicate aggregate/total rows.
+
+aggregate_state_patterns:
+  - "TOTAL (ALL-INDIA)"
+  - "TOTAL (ALL INDIA)"
+  - "TOTAL (STATES)"
+  - "TOTAL (STATE)"
+  - "TOTAL (UTS)"
+  - "TOTAL"
+  - "ALL INDIA"
+  - "ALL-INDIA"
+  - "STATES/UTS"
+  - "STATE/UT"
+  - "AREA_NAME"
+  - "\ufeffAREA_NAME"
+
+aggregate_district_patterns:
+  - "TOTAL"
+  - "TOTAL DISTRICT(S)"
+  - "TOTAL (ALL-INDIA)"
+  - "ALL INDIA"
+  - "DELHI UT TOTAL"
+  - "ZZ TOTAL"
+  - "STATE TOTAL"
+
+
+# ── State Reorganizations ──────────────────────────────────────────────────
+# Historical record of state splits. Useful for understanding data
+# discontinuities and handling post-reorganization data.
+
+reorganizations:
+  - year: 2000
+    description: "Three new states carved from existing ones"
+    changes:
+      - parent: "BIHAR"
+        new_state: "JHARKHAND"
+      - parent: "MADHYA PRADESH"
+        new_state: "CHHATTISGARH"
+      - parent: "UTTAR PRADESH"
+        new_state: "UTTARAKHAND"
+    notes: >
+      All three new states appear in NCRB data from 2001 onward.
+      Pre-2000 data attributes their crime to the parent state.
+
+  - year: 2014
+    description: "Telangana split from Andhra Pradesh"
+    changes:
+      - parent: "ANDHRA PRADESH"
+        new_state: "TELANGANA"
+    notes: >
+      Telangana appears in NCRB data from 2014 onward. Pre-2014 data
+      for the Telangana region is included under Andhra Pradesh.
+
+  - year: 2019
+    description: "J&K reorganized into two Union Territories"
+    changes:
+      - parent: "JAMMU & KASHMIR"
+        new_state: "LADAKH"
+    notes: >
+      Post-2019 NCRB data may list Ladakh as a separate UT. The current
+      dataset (2001-2014) predates this reorganization. Users adding
+      2020+ data should expect 'LADAKH' as a new entry.
+
+  - year: 2020
+    description: "Dadra & Nagar Haveli and Daman & Diu merged"
+    changes:
+      - parent: "DADRA & NAGAR HAVELI"
+        merged_with: "DAMAN & DIU"
+        new_entity: "DADRA & NAGAR HAVELI AND DAMAN & DIU"
+    notes: >
+      Post-2020 NCRB data may list the merged UT. The current dataset
+      predates this merger.

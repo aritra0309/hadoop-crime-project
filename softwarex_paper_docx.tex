@@ -1,0 +1,274 @@
+\documentclass[a4paper,12pt]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx} % Times font
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\graphicspath{{docs/screenshots/}}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit}
+\usepackage{xcolor}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{amssymb}
+\usepackage{pifont}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{--}
+\usepackage{natbib}
+
+% Spacing
+\setstretch{1.08}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+\titlespacing*{\section}{0pt}{10pt}{4pt}
+\titlespacing*{\subsection}{0pt}{8pt}{3pt}
+
+% Colors for diagram
+\definecolor{hdfscolor}{HTML}{E8F5E9}
+\definecolor{stage1color}{HTML}{E3F2FD}
+\definecolor{stage2color}{HTML}{FFF3E0}
+\definecolor{stage3color}{HTML}{F3E5F5}
+\definecolor{utilcolor}{HTML}{ECEFF1}
+\definecolor{arrowcolor}{HTML}{546E7A}
+
+% Header
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\small SoftwareX}
+\lhead{\small Original Software Publication}
+\rfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue
+}
+
+\begin{document}
+
+% Title
+{\LARGE\bfseries India Crime Intelligence Platform: A PySpark Big Data Pipeline for Analyzing National Crime Statistics\par}
+\vspace{4pt}
+
+{\large Aritra Sarkar\textsuperscript{1,*}, Shaheen Ali\textsuperscript{1}, Varshini S\textsuperscript{1}}\\[4pt]
+{\small \textsuperscript{1}School of Advanced Sciences, Vellore Institute of Technology (VIT), Vellore, Tamil Nadu, India}\\
+{\small \textsuperscript{*}Corresponding author: \href{mailto:aritra.sarkar2022@vitstudent.ac.in}{aritra.sarkar2022@vitstudent.ac.in}}\\[2pt]
+{\small \href{mailto:shaheen.ali2022@vitstudent.ac.in}{shaheen.ali2022@vitstudent.ac.in}, \href{mailto:varshini.s2022b@vitstudent.ac.in}{varshini.s2022b@vitstudent.ac.in}}
+
+\vspace{4pt}
+\hrule
+\vspace{4pt}
+
+% Abstract
+\textbf{Abstract}
+
+The India Crime Intelligence Platform is an open-source, PySpark-based big data pipeline for ingesting, cleaning, analyzing, and visualizing 14 years (2001--2014) of crime statistics published by India's National Crime Records Bureau (NCRB). The software addresses the challenge of harmonizing 18 heterogeneous CSV datasets with inconsistent schemas, variant state naming conventions, and mixed granularity levels into a unified analytical framework. The pipeline implements a three-stage architecture---data preparation, analytics, and visualization---leveraging Apache Spark on Hadoop HDFS for scalable processing. It performs KMeans clustering, polynomial Ridge regression forecasting, crime composition analysis, and women safety indexing, producing interactive choropleth maps and trend charts as standalone HTML dashboards. The platform enables researchers, policymakers, and analysts to derive actionable insights from India's crime data without requiring big data expertise.
+
+\textbf{Keywords:} crime analytics; big data; PySpark; Hadoop; clustering; data visualization
+
+\vspace{4pt}
+\hrule
+\vspace{4pt}
+
+% Metadata Table
+\section*{Required Metadata}
+
+\begin{table}[h!]
+\small
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Nr} & \textbf{Code metadata description} & \textbf{Please fill in this column} \\
+\hline
+C1 & Current code version & v1.2.0 \\
+\hline
+C2 & Permanent link to code/repository & \url{https://github.com/aritra0309/hadoop-crime-project} \\
+\hline
+C3 & Permanent link to reproducible capsule & \url{https://doi.org/10.5281/zenodo.19631449} \\
+\hline
+C4 & Legal code license & MIT License \\
+\hline
+C5 & Code versioning system used & Git \\
+\hline
+C6 & Software code languages & Python (PySpark) \\
+\hline
+C7 & Compilation requirements & Python $\geq$ 3.8, Apache Spark $\geq$ 3.0, Hadoop HDFS (or Docker) \\
+\hline
+C8 & Developer documentation/manual & \url{https://github.com/aritra0309/hadoop-crime-project/blob/main/README.md} \\
+\hline
+C9 & Support email for questions & \href{mailto:aritra.sarkar2022@vitstudent.ac.in}{aritra.sarkar2022@vitstudent.ac.in} \\
+\hline
+\end{tabularx}
+\end{table}
+
+% Section 1
+\section{Motivation and Significance}
+
+India records over five million cognizable crimes annually across 36 states and union territories, making it one of the largest and most complex criminal justice datasets in the world \cite{ncrb2021}. The National Crime Records Bureau (NCRB), operating under India's Ministry of Home Affairs, publishes these statistics annually in its ``Crime in India'' reports, providing granular data on crime categories ranging from violent offenses and property crimes to crimes against women, children, and senior citizens. Despite the richness of this data, several critical challenges have prevented researchers and policymakers from fully leveraging it for evidence-based decision-making.
+
+\textbf{Data heterogeneity and quality.} NCRB datasets spanning multiple years exhibit significant inconsistencies: state and union territory names change across reporting periods (e.g., ``Delhi UT'' vs.\ ``Delhi'' vs.\ ``Nct Of Delhi''), column schemas vary between annual releases, and aggregation granularity differs across crime categories. The platform's state mapping module resolves 50+ naming variants into canonical forms, a non-trivial normalization task that has historically required manual effort by each research group independently.
+
+\textbf{Scalability limitations.} Existing crime analysis tools for Indian data are predominantly built on pandas or Excel-based workflows that operate on single machines. As NCRB data grows in volume and researchers seek to perform computationally intensive analyses---such as clustering across all state-year-crime combinations or polynomial regression forecasting---these single-node approaches become bottlenecks. By building on Apache Spark and Hadoop HDFS \cite{hdfs2023, zaharia2016}, the platform can scale horizontally to accommodate larger datasets and more complex analytical workloads without architectural changes.
+
+\textbf{Accessibility gap.} While commercial platforms such as Tableau and Power BI can visualize crime data, they require expensive licenses and do not provide integrated machine learning pipelines. Conversely, academic research code for Indian crime analysis is rarely published as reusable, documented software. The India Crime Intelligence Platform bridges this gap by providing an end-to-end open-source solution---from raw data ingestion through machine learning analysis to interactive web-based dashboards---that requires no proprietary software and can be deployed via Docker with a single command.
+
+No existing open-source tool provides this combination of capabilities for Indian crime data, as shown in the comparison in Section~3.
+
+% Section 2
+\section{Software Description}
+
+\subsection{Software Architecture}
+
+The platform follows a modular three-stage pipeline architecture, with each stage implemented as an independent PySpark module that reads from and writes to Hadoop HDFS.
+
+\vspace{4pt}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{architecture_diagram.png}
+\caption{Three-stage PySpark pipeline architecture with HDFS storage and shared utilities.}
+\label{fig:architecture}
+\end{figure}
+\vspace{4pt}
+
+\textbf{Stage 1 (Data Preparation)} reads raw CSV files from HDFS, applies schema normalization and type casting, resolves state naming inconsistencies using a comprehensive mapping dictionary, and writes cleaned DataFrames back to HDFS. This stage handles 18 distinct datasets covering categories including violent crimes, property crimes, crimes against women, juvenile offenses, and police strength statistics.
+
+\textbf{Stage 2 (Analytics Engine)} performs four classes of analysis on the cleaned data: (i) KMeans clustering with silhouette-score-based optimal $k$ selection \cite{rousseeuw1987} to identify state-level crime pattern groups, (ii) polynomial Ridge regression \cite{hoerl1970} for multi-year crime trend forecasting, (iii) crime composition analysis computing percentage breakdowns across categories, and (iv) a composite women safety index aggregating gender-specific crime metrics per state.
+
+\textbf{Stage 3 (Visualization)} consumes JSON output from the analytics stage and generates interactive web-based visualizations using Folium \cite{folium2023} for geospatial choropleth maps and embedded JavaScript for trend charts, producing a self-contained HTML dashboard.
+
+\subsection{Software Functionalities}
+
+The platform provides seven core functionalities:
+
+\begin{enumerate}[leftmargin=*, itemsep=2pt]
+    \item \textbf{Automated data harmonization.} Ingests 18 heterogeneous NCRB CSV files spanning 2001--2014, resolves 50+ state/UT naming variants into canonical forms, normalizes schemas across years, and performs type-safe casting---eliminating weeks of manual preprocessing effort.
+    
+    \item \textbf{State-level crime clustering.} Applies KMeans clustering \cite{hartigan1979} with automated optimal $k$ selection via silhouette analysis \cite{rousseeuw1987}. Clusters states into behaviorally similar groups based on multi-dimensional crime profiles, enabling comparative criminological analysis.
+    
+    \item \textbf{Crime trend forecasting.} Implements polynomial Ridge regression \cite{hoerl1970} to forecast future crime rates by category and state. The regularized regression approach handles multicollinearity in temporal features while avoiding overfitting to short time series, following established forecasting methodology \cite{hyndman2021}.
+    
+    \item \textbf{Crime composition analysis.} Computes normalized percentage breakdowns of crime categories per state and year, revealing structural differences in crime profiles---for instance, identifying states where property crimes dominate versus those with disproportionate violent crime rates.
+    
+    \item \textbf{Women safety indexing.} Constructs a composite safety index by aggregating gender-specific crime metrics (dowry deaths, assault, kidnapping, domestic violence) per state, providing a quantitative basis for comparing women's safety across regions.
+    
+    \item \textbf{Interactive geospatial visualization.} Generates Folium-based choropleth maps using GeoJSON boundaries that color-code states by crime metrics, with hover tooltips displaying detailed statistics---enabling spatial pattern recognition without GIS expertise.
+    
+    \item \textbf{Standalone HTML dashboard.} Produces a self-contained, zero-dependency HTML dashboard combining maps, trend charts, and tabular summaries that can be opened in any web browser and shared without server infrastructure.
+\end{enumerate}
+
+% Section 3
+\section{Illustrative Examples}
+
+\textbf{Example: Full pipeline execution and output.} The complete pipeline can be executed with Docker in a single command:
+
+\begin{verbatim}
+docker compose up --build
+\end{verbatim}
+
+This provisions a Spark environment, loads all 18 datasets into HDFS, runs the three-stage pipeline (data preparation, analytics, visualization), and outputs the interactive dashboard to the \texttt{output/} directory. Alternatively, users can run individual stages via \texttt{scripts/run\_pipeline\_local.sh}.
+
+The analytics stage produces several outputs: (i)~KMeans cluster assignments grouping states by crime profiles---for instance, Uttar Pradesh and Madhya Pradesh fall into a high-crime cluster while northeastern states form a low-crime cluster; (ii)~a women safety index computed as an inverse normalized score from crimes-against-women data; and (iii)~state-wise forecasts for 2015--2020 using model selection between Ridge polynomial regression and gradient boosting with time-series cross-validation.
+
+The visualization stage generates an interactive choropleth map of India (Figure~\ref{fig:national_overview}) where states are colored by crime intensity. Users can hover over any state to view detailed statistics, toggle between crime categories, and navigate the 2001--2014 time period using a year selector. The state mapping module automatically resolves naming inconsistencies across datasets---for example, mapping ``Delhi UT'', ``Nct Of Delhi'', and ``Delhi'' to a canonical ``Delhi'' entry.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{01_national_overview.png}
+\caption{National overview dashboard showing the interactive choropleth map with state-level crime statistics and year selector.}
+\label{fig:national_overview}
+\end{figure}
+
+\vspace{4pt}
+\noindent\textbf{Comparison with existing tools:}
+
+\begin{table}[h!]
+\small
+\centering
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}X|c|c|c|c|c|}
+\hline
+\textbf{Feature} & \textbf{Ours} & \textbf{Pandas} & \textbf{Tableau} & \textbf{QGIS} & \textbf{R/tidyverse} \\
+\hline
+NCRB-specific harmonization & Yes & -- & -- & -- & -- \\
+\hline
+Distributed (Spark/HDFS) & Yes & -- & -- & -- & -- \\
+\hline
+ML clustering + forecasting & Yes & Partial & -- & -- & Yes \\
+\hline
+Interactive choropleth maps & Yes & -- & Yes & Yes & Partial \\
+\hline
+Open source & Yes & Yes & -- & Yes & Yes \\
+\hline
+Docker one-command deploy & Yes & -- & -- & -- & -- \\
+\hline
+End-to-end pipeline & Yes & -- & -- & -- & -- \\
+\hline
+\end{tabularx}
+\caption{Feature comparison with existing tools for Indian crime data analysis.}
+\end{table}
+
+% Section 4
+\section{Impact}
+
+The India Crime Intelligence Platform addresses a tangible gap in the availability of open-source, scalable tools for analyzing Indian crime statistics. Its impact spans multiple domains:
+
+\textbf{Research enablement.} By providing clean, analysis-ready data and reproducible analytical pipelines, the platform eliminates the significant data wrangling overhead that has historically consumed a disproportionate share of research effort in Indian criminology studies. Researchers can focus on hypothesis testing and interpretation rather than data cleaning. The standardized state mapping alone---resolving 50+ naming variants---represents a reusable contribution that benefits any study working with multi-year NCRB data.
+
+\textbf{Policy and governance.} The interactive dashboard and women safety index provide policymakers and law enforcement agencies with intuitive, evidence-based tools for resource allocation and intervention planning. State-level crime clustering reveals structural similarities between regions that may benefit from shared policy approaches, while trend forecasting supports proactive rather than reactive policing strategies.
+
+\textbf{Education and capacity building.} The platform serves as a practical teaching resource for big data analytics courses, demonstrating real-world application of PySpark, Hadoop HDFS, KMeans clustering, and Ridge regression on authentic government data. Its modular architecture allows students to study individual components (e.g., data cleaning, ML analysis, visualization) independently. The Docker-based deployment ensures students can run the full pipeline without complex infrastructure setup.
+
+\textbf{Reproducibility and transparency.} All code, data, and configuration are publicly available under the MIT license with a permanent Zenodo archive. The CI/CD pipeline with 40+ automated tests ensures ongoing code quality. This level of reproducibility is uncommon in Indian crime analytics research, where analysis code is rarely published alongside findings.
+
+\textbf{Extensibility.} The modular architecture is designed for extension: new NCRB datasets (post-2014) can be added by placing CSV files in the data directory and updating the state mapping if needed. New analytical modules can be added to Stage 2 without modifying the data preparation or visualization stages.
+
+% Section 5
+\section{Conclusions}
+
+The India Crime Intelligence Platform provides an end-to-end, open-source big data solution for Indian crime statistics analysis. Version 1.1.0 processes 18 NCRB datasets spanning 2001--2014, performing automated data harmonization, KMeans clustering, Ridge regression forecasting, crime composition analysis, and women safety indexing, with results delivered through interactive HTML dashboards.
+
+Future development directions include: (i) integration of NCRB data from 2015 onward as reports become available, (ii) Apache Hive integration for SQL-based ad hoc querying of the crime data warehouse, (iii) real-time data ingestion capabilities for emerging crime reporting APIs, (iv) additional machine learning models including time-series decomposition and anomaly detection, and (v) a web application frontend for non-technical users.
+
+\vspace{4pt}
+\textbf{Acknowledgements}
+
+The authors thank Prof.\ Ashish Bhatt (\href{mailto:ashish.bhatt@vit.ac.in}{ashish.bhatt@vit.ac.in}), VIT Vellore, for guidance and supervision throughout this project.
+
+% References
+\begin{thebibliography}{10}
+\bibitem{ncrb2021} National Crime Records Bureau, ``Crime in India -- Annual Reports,'' Ministry of Home Affairs, Government of India, 2001--2021. Available: \url{https://ncrb.gov.in}
+
+\bibitem{hdfs2023} Apache Software Foundation, ``HDFS Architecture,'' 2023. Available: \url{https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html}
+
+\bibitem{zaharia2016} M.\ Zaharia, R.S.\ Xin, P.\ Wendell, T.\ Das, M.\ Armbrust, A.\ Dave, X.\ Meng, J.\ Rosen, S.\ Venkataraman, M.J.\ Franklin, A.\ Ghodsi, J.\ Gonzalez, S.\ Shenker, and I.\ Stoica, ``Apache Spark: A unified engine for big data processing,'' \textit{Communications of the ACM}, vol.\ 59, no.\ 11, pp.\ 56--65, 2016.
+
+\bibitem{meng2016} X.\ Meng, J.\ Bradley, B.\ Yavuz, E.\ Sparks, S.\ Venkataraman, D.\ Liu, J.\ Freeman, D.\ Tsai, M.\ Amde, S.\ Owen, D.\ Xin, R.\ Xin, M.J.\ Franklin, R.\ Zadeh, M.\ Zaharia, and A.\ Talwalkar, ``MLlib: Machine learning in Apache Spark,'' \textit{Journal of Machine Learning Research}, vol.\ 17, no.\ 34, pp.\ 1--7, 2016.
+
+\bibitem{pedregosa2011} F.\ Pedregosa, G.\ Varoquaux, A.\ Gramfort, V.\ Michel, B.\ Thirion, O.\ Grisel, M.\ Blondel, P.\ Prettenhofer, R.\ Weiss, V.\ Dubourg, J.\ Vanderplas, A.\ Passos, D.\ Cournapeau, M.\ Brucher, M.\ Perrot, and E.\ Duchesnay, ``Scikit-learn: Machine learning in Python,'' \textit{Journal of Machine Learning Research}, vol.\ 12, pp.\ 2825--2830, 2011.
+
+\bibitem{folium2023} Python-visualization, ``Folium: Python Data, Leaflet.js Maps,'' 2023. Available: \url{https://python-visualization.github.io/folium/}
+
+\bibitem{hartigan1979} J.A.\ Hartigan and M.A.\ Wong, ``Algorithm AS 136: A K-Means clustering algorithm,'' \textit{Journal of the Royal Statistical Society. Series C (Applied Statistics)}, vol.\ 28, no.\ 1, pp.\ 100--108, 1979.
+
+\bibitem{hoerl1970} A.E.\ Hoerl and R.W.\ Kennard, ``Ridge regression: Biased estimation for nonorthogonal problems,'' \textit{Technometrics}, vol.\ 12, no.\ 1, pp.\ 55--67, 1970.
+
+\bibitem{rousseeuw1987} P.J.\ Rousseeuw, ``Silhouettes: A graphical aid to the interpretation and validation of cluster analysis,'' \textit{Journal of Computational and Applied Mathematics}, vol.\ 20, pp.\ 53--65, 1987.
+
+\bibitem{hyndman2021} R.J.\ Hyndman and G.\ Athanasopoulos, \textit{Forecasting: Principles and Practice}, 3rd ed., OTexts, Melbourne, Australia, 2021. Available: \url{https://otexts.com/fpp3/}
+\end{thebibliography}
+
+\end{document}

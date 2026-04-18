@@ -1,0 +1,134 @@
+# =============================================================================
+# Dataset Registry — India Crime Intelligence Platform v1.3
+# =============================================================================
+# Lists every dataset the pipeline knows about. The pipeline reads this registry
+# at startup and processes files that match the patterns.
+#
+# Adding new data:
+#   1. Drop new CSVs into data/ directory
+#   2. If the file matches an existing pattern, it's auto-detected
+#   3. For truly new dataset types, add an entry here
+# =============================================================================
+
+datasets:
+  # ── District-Level Core Datasets ──────────────────────────────────────────
+  - name: "IPC District Crimes"
+    pattern: "01_District_wise_crimes_committed_IPC_*.csv"
+    handler: "normalize_ipc_district"
+    category: "ipc_district"
+    type: "district"
+    expected_columns:
+      - "STATE/UT"
+      - "DISTRICT"
+      - "YEAR"
+      - "MURDER"
+    column_aliases:
+      state: ["STATE/UT", "States/UTs"]
+      district: ["DISTRICT", "District"]
+      year: ["YEAR", "Year"]
+
+  - name: "Women District Crimes"
+    pattern: "42_District_wise_crimes_committed_against_women_*.csv"
+    handler: "normalize_women_district"
+    category: "women_district"
+    type: "district"
+    expected_columns:
+      - "STATE/UT"
+      - "DISTRICT"
+      - "YEAR"
+      - "Rape"
+    column_aliases:
+      state: ["STATE/UT", "States/UTs"]
+      district: ["DISTRICT", "District"]
+      year: ["YEAR", "Year"]
+
+  # ── State-Level Supplementary Datasets ────────────────────────────────────
+  - name: "Property Stolen & Recovered"
+    pattern: "10_Property_stolen_and_recovered.csv"
+    handler: "build_property_metrics"
+    category: "property"
+    type: "state"
+    expected_columns:
+      - "Area_Name"
+      - "Year"
+      - "Group_Name"
+      - "Cases_Property_Stolen"
+      - "Value_of_Property_Stolen"
+
+  - name: "Crime by Place of Occurrence"
+    pattern: "17_Crime_by_place_of_occurrence_*.csv"
+    handler: "build_place_metrics"
+    category: "place_of_occurrence"
+    type: "state"
+    expected_columns:
+      - "Area_Name"
+      - "Year"
+
+  - name: "Auto Theft"
+    pattern: "30_Auto_theft.csv"
+    handler: "build_auto_theft_metrics"
+    category: "auto_theft"
+    type: "state"
+    expected_columns:
+      - "Area_Name"
+      - "Year"
+      - "Auto_Theft_Stolen"
+      - "Auto_Theft_Recovered"
+
+  - name: "Serious Fraud"
+    pattern: "31_Serious_fraud.csv"
+    handler: "build_fraud_metrics"
+    category: "fraud"
+    type: "state"
+    expected_columns:
+      - "Area_Name"
+      - "Year"
+      - "Cases_Cheating"
+
+  - name: "Murder Victim Demographics"
+    pattern: "32_Murder_victim_age_sex.csv"
+    handler: "build_murder_demographics"
+    category: "murder_demographics"
+    type: "state"
+    expected_columns:
+      - "Area_Name"
+      - "Year"
+      - "Sub_Group_Name"
+
+  - name: "Culpable Homicide Demographics"
+    pattern: "33_CH_not_murder_victim_age_sex.csv"
+    handler: "build_culpable_demographics"
+    category: "culpable_homicide"
+    type: "state"
+    expected_columns:
+      - "Area_Name"
+      - "Year"
+
+  - name: "Firearms in Murder"
+    pattern: "34_Use_of_fire_arms_in_murder_cases.csv"
+    handler: "build_firearm_metrics"
+    category: "firearms"
+    type: "state"
+    expected_columns:
+      - "Area_Name"
+      - "Year"
+
+  - name: "Kidnapping Purpose"
+    pattern: "39_Specific_purpose_of_kidnapping_and_abduction.csv"
+    handler: "build_kidnap_purpose_metrics"
+    category: "kidnapping"
+    type: "state"
+    expected_columns:
+      - "Area_Name"
+      - "Year"
+
+  - name: "Cases Against Women (Pipeline)"
+    pattern: "42_Cases_under_crime_against_women.csv"
+    handler: "build_women_case_pipeline_metrics"
+    category: "women_cases"
+    type: "state"
+    expected_columns:
+      - "Area_Name"
+      - "Year"
+      - "Group_Name"
+      - "Cases_Reported"

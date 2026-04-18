@@ -1,3 +1,4 @@
+import datetime
 import json
 import math
 import os
@@ -37,11 +38,18 @@ try:
 except ModuleNotFoundError:
     from utils import safe_select
 
+try:
+    from src.config_loader import load_config, get_config
+except ModuleNotFoundError:
+    from config_loader import load_config, get_config
 
-HDFS_BASE = "hdfs://localhost:9000"
-DISTRICT_PATH = f"{HDFS_BASE}/crime/output/district_master"
-STATE_PATH = f"{HDFS_BASE}/crime/output/state_master"
-OUTPUT_DIR = os.path.join(ROOT_DIR, "output", "dashboard_data")
+
+from src.config_loader import get_config
+_cfg = get_config()
+HDFS_BASE = _cfg.hdfs_base_url
+DISTRICT_PATH = _cfg.district_master_path
+STATE_PATH = _cfg.state_master_path
+OUTPUT_DIR = str(_cfg.abs_output_dir)
 
 
 def canonical_to_geojson_name(state: Optional[str]) -> Optional[str]:
@@ -138,6 +146,71 @@ def to_native(obj: Any) -> Any:
     if obj is None:
         return None
     return obj
+
+
+def build_output_metadata() -> Dict[str, Any]:
+    """Build metadata block to embed in every JSON output."""
+    cfg = get_config()
+    return {
+        'pipeline_version': cfg.pipeline_version,
+        'generated_at': datetime.datetime.now().isoformat(),
+        'config': {
+            'year_range_mode': cfg.year_range_mode,
+            'year_range': [cfg.year_range_min, cfg.year_range_max],
+            'forecast_horizon': cfg.forecast_horizon,
+            'kmeans_k_range': [cfg.kmeans_k_min, cfg.kmeans_k_max],
+            'kmeans_seed': cfg.kmeans_seed,
+        }
+    }
+
+
+def _emit_analytics_warnings(state_df: DataFrame, district_df: DataFrame) -> None:
+    """Print validation warnings during analytics pipeline run."""
+    known_states = {
+        "andhra pradesh", "arunachal pradesh", "assam", "bihar", "chhattisgarh",
+        "goa", "gujarat", "haryana", "himachal pradesh", "jammu & kashmir",
+        "jharkhand", "karnataka", "kerala", "madhya pradesh", "maharashtra",
+        "manipur", "meghalaya", "mizoram", "nagaland", "odisha", "punjab",
+        "rajasthan", "sikkim", "tamil nadu", "telangana", "tripura",
+        "uttar pradesh", "uttarakhand", "west bengal",
+        "andaman & nicobar islands", "chandigarh", "dadra & nagar haveli",
+        "daman & diu", "delhi", "lakshadweep", "puducherry",
+        "a & n islands", "d & n haveli", "delhi ut",
+    }
+    for label, df in [("state_master", state_df), ("district_master", district_df)]:
+        total = df.count()
+        if total == 0:
+            print(f"  WARNING: {label} is empty")
+            continue
+
+        # Unknown state names
+        if "state" in df.columns:
+            state_vals = [r["state"] for r in df.select("state").distinct().collect()]
+            for s in state_vals:
+                if s and s.lower() not in known_states:
+                    print(f"  WARNING: [{label}] Unknown state name: \'{s}\'")
+
+        # Years with suspiciously few data points
+        if "year" in df.columns:
+            year_counts = df.groupBy("year").count().orderBy("year").collect()
+            if year_counts:
+                counts = [r["count"] for r in year_counts]
+                median_count = sorted(counts)[len(counts) // 2]
+                threshold = max(median_count * 0.1, 5)
+                for r in year_counts:
+                    if r["count"] < threshold:
+                        print(f"  WARNING: [{label}] Year {r['year']} has only {r['count']} rows (median={median_count})")
+
+        # Columns with >50% missing values
+        exprs = [
+            (F.sum(F.when(F.col(c).isNull(), F.lit(1)).otherwise(F.lit(0))) / F.lit(total)).alias(c)
+            for c in df.columns
+        ]
+        row = df.agg(*exprs).collect()[0].asDict()
+        for c in df.columns:
+            pct = float(row[c]) * 100
+            if pct > 50:
+                print(f"  WARNING: [{label}] Column \'{c}\' has {pct:.1f}% missing values (>50%)")
 
 
 def write_json(path: str, payload: Dict[str, Any]) -> None:
@@ -245,18 +318,19 @@ def compute_district_analysis(district_df: DataFrame, notes: List[str]) -> Dict[
         notes.append("District YoY growth could not be computed because total IPC column was not found.")
         yoy_df = district_df.select("state", "district", "year").withColumn("total_ipc", F.lit(None)).withColumn("prev_total_ipc", F.lit(None)).withColumn("yoy_growth_pct", F.lit(None))
 
-    hotspots_2014_df = (
-        severity_df.filter(F.col("year") == 2014)
+    max_year = severity_df.agg(F.max('year')).collect()[0][0]
+    hotspots_latest_df = (
+        severity_df.filter(F.col('year') == max_year)
         .select("state", "district", "year", "severity_score")
         .orderBy(F.col("severity_score").desc_nulls_last())
         .limit(50)
     )
 
     rising_df = (
-        yoy_df.filter((F.col("year") >= 2010) & (F.col("year") <= 2014))
+        yoy_df.filter((F.col("year") >= max_year - 4) & (F.col("year") <= max_year))
         .groupBy("state", "district")
-        .agg(F.avg("yoy_growth_pct").alias("avg_yoy_growth_2010_2014"))
-        .orderBy(F.col("avg_yoy_growth_2010_2014").desc_nulls_last())
+        .agg(F.avg("yoy_growth_pct").alias("avg_yoy_growth_last_5yr"))
+        .orderBy(F.col("avg_yoy_growth_last_5yr").desc_nulls_last())
         .limit(50)
     )
 
@@ -301,8 +375,8 @@ def compute_district_analysis(district_df: DataFrame, notes: List[str]) -> Dict[
         "severity_scores": rows_to_dicts(severity_df.select("state", "district", "year", "severity_score"), ["state", "district", "year"]),
         "women_safety_index": rows_to_dicts(women_df.select("state", "district", "year", "women_safety_index"), ["state", "district", "year"]),
         "yoy_growth": rows_to_dicts(yoy_df.select("state", "district", "year", "total_ipc", "prev_total_ipc", "yoy_growth_pct"), ["state", "district", "year"]),
-        "hotspots_2014": rows_to_dicts(hotspots_2014_df, ["severity_score"]),
-        "rising_hotspots": rows_to_dicts(rising_df, ["avg_yoy_growth_2010_2014"]),
+        "hotspots_latest": rows_to_dicts(hotspots_latest_df, ["severity_score"]),
+        "rising_hotspots": rows_to_dicts(rising_df, ["avg_yoy_growth_last_5yr"]),
         "crime_profiles": rows_to_dicts(prof_df.select("state", "district", "year", "pct_violent", "pct_property", "pct_women", "dominant_crime_type"), ["state", "district", "year"]),
     }
     return payload
@@ -410,15 +484,11 @@ def compute_clusters(state_df: DataFrame, notes: List[str]) -> Dict[str, Any]:
         else:
             prefix = "Moderate Crime"
 
-        qualifier = None
-        secondary_priority = [
-            ("avg_recovery_rate", "Efficient Recovery", "Low Recovery"),
-            ("avg_crimes_women", "High Women Crime", None),
-            ("avg_fraud", "High Fraud", None),
-            ("avg_firearms_murder", "High Firearms Use", None),
-        ]
-        best_abs_z = 0.0
-        for feat, pos_label, neg_label in secondary_priority:
+        # Collect ALL qualifying tags (multi-dimensional profile labels)
+        cfg = get_config()
+        tags = []
+        for feat_info in cfg.cluster_secondary_features:
+            feat = feat_info['feature']
             if feat not in row:
                 continue
             c_mean = float(row.get(feat) or 0.0)
@@ -427,14 +497,15 @@ def compute_clusters(state_df: DataFrame, notes: List[str]) -> Dict[str, Any]:
             if gg_std <= 0:
                 continue
             z = (c_mean - gg_mean) / gg_std
-            if abs(z) > best_abs_z and abs(z) >= secondary_threshold_z:
-                best_abs_z = abs(z)
-                if z > 0:
-                    qualifier = pos_label
-                elif neg_label:
-                    qualifier = neg_label
+            if z >= cfg.cluster_secondary_threshold_z and feat_info.get('pos_label'):
+                tags.append(feat_info['pos_label'])
+            elif z <= -cfg.cluster_secondary_threshold_z and feat_info.get('neg_label'):
+                tags.append(feat_info['neg_label'])
 
-        label_map[cluster_id] = f"{prefix}, {qualifier}" if qualifier else prefix
+        label = prefix
+        if tags:
+            label = f"{prefix}, {', '.join(tags)}"
+        label_map[cluster_id] = label
 
     assigns_df = clustered.select("state", "cluster_id")
     assigns = rows_to_dicts(assigns_df, ["state"])
@@ -462,9 +533,316 @@ def compute_clusters(state_df: DataFrame, notes: List[str]) -> Dict[str, Any]:
         "cluster_summaries": summaries,
         "labeling_metadata": {
             "primary_threshold": "avg_ipc_crimes compared to global mean +/- 1 std",
-            "secondary_threshold": f"largest |z| secondary feature with |z| >= {secondary_threshold_z}",
+            "secondary_threshold": f"all secondary features with |z| >= {secondary_threshold_z} (multi-tag)",
             "features_used": feature_cols,
             "deviations": notes,
+        },
+    }
+
+
+
+def compute_cluster_transitions(yearly_assignments: List[Dict]) -> Dict[str, Any]:
+    """Compute transition matrix showing how states moved between clusters."""
+    if len(yearly_assignments) < 2:
+        return {'transitions': [], 'transition_matrix': {}, 'stability_scores': {}}
+
+    # Sort by year
+    yearly_assignments = sorted(yearly_assignments, key=lambda x: x.get('year', 0))
+
+    transitions = []
+    state_moves = {}  # state -> list of cluster_ids over years
+
+    for ya in yearly_assignments:
+        year = ya.get('year')
+        for sa in ya.get('state_assignments', []):
+            state = sa.get('state')
+            cid = sa.get('cluster_id')
+            if state not in state_moves:
+                state_moves[state] = []
+            state_moves[state].append({'year': year, 'cluster_id': cid, 'cluster_label': sa.get('cluster_label', '')})
+
+    # Build transition counts between consecutive years
+    transition_counts = {}  # (from_label, to_label) -> count
+    for i in range(len(yearly_assignments) - 1):
+        y1 = yearly_assignments[i]
+        y2 = yearly_assignments[i + 1]
+        year_from = y1.get('year')
+        year_to = y2.get('year')
+        map1 = {sa['state']: sa for sa in y1.get('state_assignments', [])}
+        map2 = {sa['state']: sa for sa in y2.get('state_assignments', [])}
+        for state in set(map1.keys()) & set(map2.keys()):
+            lbl1 = map1[state].get('cluster_label', 'Unknown')
+            lbl2 = map2[state].get('cluster_label', 'Unknown')
+            transitions.append({
+                'state': state,
+                'year_from': year_from,
+                'year_to': year_to,
+                'cluster_from': lbl1,
+                'cluster_to': lbl2,
+                'changed': lbl1 != lbl2,
+            })
+            key = f"{lbl1} -> {lbl2}"
+            transition_counts[key] = transition_counts.get(key, 0) + 1
+
+    # Stability score per state: fraction of transitions where cluster stayed same
+    stability_scores = {}
+    for state, moves in state_moves.items():
+        if len(moves) < 2:
+            stability_scores[state] = 1.0
+            continue
+        same = sum(1 for i in range(len(moves) - 1) if moves[i]['cluster_id'] == moves[i + 1]['cluster_id'])
+        stability_scores[state] = round(same / (len(moves) - 1), 4)
+
+    return {
+        'transitions': transitions,
+        'transition_matrix': transition_counts,
+        'stability_scores': stability_scores,
+    }
+
+
+def compute_trajectory_clusters(state_df: DataFrame, notes: List[str]) -> Dict[str, Any]:
+    """Cluster states by their crime TRAJECTORIES (how crime changed over time)."""
+    from src.config_loader import get_config
+    cfg = get_config()
+
+    cols = state_df.columns
+    total_ipc_col = pick_col(cols, ['total_ipc', 'total_ipc_crimes'])
+    total_women_col = pick_col(cols, ['total_women', 'total_crimes_women'])
+
+    if not total_ipc_col:
+        notes.append('Trajectory clustering skipped: no IPC total column found.')
+        return {'trajectory_clusters': [], 'metadata': {'deviations': notes}}
+
+    # Compute YoY % change per state per year
+    w = Window.partitionBy('state').orderBy('year')
+    traj_df = state_df.select('state', 'year', total_ipc_col)
+    traj_df = traj_df.withColumn('prev_val', F.lag(total_ipc_col).over(w))
+    traj_df = traj_df.withColumn('yoy_pct',
+        F.when(F.col('prev_val') > 0,
+               ((F.col(total_ipc_col) - F.col('prev_val')) / F.col('prev_val')) * 100.0
+        ).otherwise(F.lit(None)))
+
+    # Compute trajectory features per state: avg_yoy, volatility, min, max
+    traj_features = traj_df.groupBy('state').agg(
+        F.avg('yoy_pct').alias('avg_yoy_change'),
+        F.stddev('yoy_pct').alias('yoy_volatility'),
+        F.min('yoy_pct').alias('min_yoy'),
+        F.max('yoy_pct').alias('max_yoy'),
+    ).na.fill(0.0)
+
+    # Compute overall_pct_change: first year vs last year total IPC
+    first_last = traj_df.groupBy('state').agg(
+        F.first(total_ipc_col).alias('first_year_val'),
+        F.last(total_ipc_col).alias('last_year_val'),
+    )
+    first_last = first_last.withColumn('overall_pct_change',
+        F.when(F.col('first_year_val') > 0,
+               ((F.col('last_year_val') - F.col('first_year_val')) / F.col('first_year_val')) * 100.0
+        ).otherwise(F.lit(0.0)))
+
+    traj_features = traj_features.join(
+        first_last.select('state', 'overall_pct_change'), on='state', how='left'
+    ).na.fill(0.0)
+
+    feature_cols = ['avg_yoy_change', 'yoy_volatility', 'min_yoy', 'max_yoy', 'overall_pct_change']
+
+    # Need at least 2 features and 2 states
+    n_states = traj_features.count()
+    if n_states < 2:
+        notes.append('Trajectory clustering skipped: fewer than 2 states.')
+        return {'trajectory_clusters': [], 'metadata': {'deviations': notes}}
+
+    assembler = VectorAssembler(inputCols=feature_cols, outputCol='features')
+    assembled = assembler.transform(traj_features)
+
+    scaler = StandardScaler(inputCol='features', outputCol='scaled_features', withMean=True, withStd=True)
+    scaled = scaler.fit(assembled).transform(assembled)
+
+    k_max = min(cfg.kmeans_k_max, max(2, n_states - 1))
+    k_min = cfg.kmeans_k_min
+
+    evaluator = ClusteringEvaluator(featuresCol='scaled_features', predictionCol='prediction', metricName='silhouette')
+    silhouettes = []
+    for k in range(k_min, k_max + 1):
+        model = KMeans(k=k, seed=cfg.kmeans_seed, featuresCol='scaled_features', predictionCol='prediction').fit(scaled)
+        pred = model.transform(scaled)
+        score = evaluator.evaluate(pred)
+        silhouettes.append({'k': k, 'score': score})
+
+    best = max(silhouettes, key=lambda x: x['score']) if silhouettes else {'k': 2, 'score': 0.0}
+    optimal_k = int(best['k'])
+
+    model = KMeans(k=optimal_k, seed=cfg.kmeans_seed, featuresCol='scaled_features', predictionCol='cluster_id').fit(scaled)
+    clustered = model.transform(scaled)
+
+    # Label clusters based on trajectory characteristics
+    cluster_means_df = clustered.groupBy('cluster_id').agg(
+        *[F.mean(c).alias(c) for c in feature_cols],
+        F.count('state').alias('state_count'),
+    )
+    cluster_means = rows_to_dicts(cluster_means_df, ['cluster_id'])
+
+    label_map = {}
+    for row in cluster_means:
+        cid = int(row['cluster_id'])
+        avg_yoy = float(row.get('avg_yoy_change') or 0.0)
+        volatility = float(row.get('yoy_volatility') or 0.0)
+        overall_chg = float(row.get('overall_pct_change') or 0.0)
+
+        # Determine primary direction
+        if overall_chg > 15.0:
+            direction = 'Rising'
+        elif overall_chg < -15.0:
+            direction = 'Declining'
+        else:
+            direction = 'Stable'
+
+        # Add volatility qualifier
+        if volatility > 20.0:
+            label = f'{direction}, Volatile'
+        else:
+            label = direction
+
+        label_map[cid] = label
+
+    assigns = rows_to_dicts(clustered.select('state', 'cluster_id', *feature_cols), ['state'])
+    for r in assigns:
+        cid = int(r['cluster_id'])
+        r['cluster_label'] = label_map.get(cid, 'Stable')
+        r['geojson_state'] = canonical_to_geojson_name(r['state'])
+
+    summaries = []
+    for row in cluster_means:
+        cid = int(row['cluster_id'])
+        out = {
+            'cluster_id': cid,
+            'cluster_label': label_map.get(cid, 'Stable'),
+            'state_count': row.get('state_count'),
+        }
+        for c in feature_cols:
+            out[c] = row.get(c)
+        summaries.append(out)
+
+    return {
+        'optimal_k': optimal_k,
+        'silhouette_scores': silhouettes,
+        'state_assignments': assigns,
+        'cluster_summaries': summaries,
+        'metadata': {
+            'features_used': feature_cols,
+            'labeling_rules': {
+                'Rising': 'overall_pct_change > 15%',
+                'Declining': 'overall_pct_change < -15%',
+                'Stable': 'within +/-15%',
+                'Volatile': 'yoy_volatility > 20%',
+            },
+            'deviations': notes,
+        },
+    }
+
+
+def compute_yearly_clusters(state_df: DataFrame, notes: List[str]) -> Dict[str, Any]:
+    """Run KMeans per year to track cluster transitions over time."""
+    from src.config_loader import get_config
+    cfg = get_config()
+
+    cols = state_df.columns
+    total_ipc_col = pick_col(cols, ['total_ipc', 'total_ipc_crimes'])
+    total_women_col = pick_col(cols, ['total_women', 'total_crimes_women'])
+
+    if not total_ipc_col:
+        notes.append('Yearly clustering skipped: no IPC total column found.')
+        return {'yearly_clusters': [], 'transitions': {}, 'metadata': {'deviations': notes}}
+
+    # Build feature list for per-year clustering
+    feature_src = {}
+    if total_ipc_col:
+        feature_src['total_ipc'] = total_ipc_col
+    if total_women_col:
+        feature_src['total_women'] = total_women_col
+    for c in ['murder', 'rape', 'robbery', 'theft', 'burglary']:
+        if c in cols:
+            feature_src[c] = c
+
+    if len(feature_src) < 2:
+        notes.append('Yearly clustering skipped: fewer than 2 feature columns available.')
+        return {'yearly_clusters': [], 'transitions': {}, 'metadata': {'deviations': notes}}
+
+    years = sorted([r[0] for r in state_df.select('year').distinct().collect()])
+    yearly_results = []
+
+    for year in years:
+        year_df = state_df.filter(F.col('year') == year)
+        # Select features
+        select_exprs = ['state']
+        for alias, src in feature_src.items():
+            select_exprs.append(F.col(src).alias(alias))
+        feat_df = year_df.select(*select_exprs).na.fill(0.0)
+        feature_cols = list(feature_src.keys())
+
+        n_states = feat_df.count()
+        if n_states < 3:
+            notes.append(f'Yearly clustering for year={year} skipped: only {n_states} states.')
+            continue
+
+        assembler = VectorAssembler(inputCols=feature_cols, outputCol='features')
+        assembled = assembler.transform(feat_df)
+
+        scaler = StandardScaler(inputCol='features', outputCol='scaled_features', withMean=True, withStd=True)
+        scaled = scaler.fit(assembled).transform(assembled)
+
+        # Use fixed k=3 for yearly clusters (Low/Medium/High) for consistency across years
+        k = min(3, n_states - 1)
+        model = KMeans(k=k, seed=cfg.kmeans_seed, featuresCol='scaled_features', predictionCol='cluster_id').fit(scaled)
+        clustered = model.transform(scaled)
+
+        # Compute cluster means for labeling
+        cluster_means_df = clustered.groupBy('cluster_id').agg(
+            F.mean('total_ipc').alias('mean_ipc'),
+            F.count('state').alias('state_count'),
+        )
+        cluster_means = rows_to_dicts(cluster_means_df, ['cluster_id'])
+
+        # Sort clusters by mean IPC to assign consistent labels
+        sorted_clusters = sorted(cluster_means, key=lambda x: float(x.get('mean_ipc') or 0.0))
+        label_map = {}
+        tier_labels = ['Low Crime', 'Moderate Crime', 'High Crime']
+        for i, cm in enumerate(sorted_clusters):
+            lbl_idx = min(i, len(tier_labels) - 1)
+            label_map[int(cm['cluster_id'])] = tier_labels[lbl_idx]
+
+        assigns = rows_to_dicts(clustered.select('state', 'cluster_id'), ['state'])
+        for r in assigns:
+            cid = int(r['cluster_id'])
+            r['cluster_label'] = label_map.get(cid, 'Moderate Crime')
+            r['geojson_state'] = canonical_to_geojson_name(r['state'])
+
+        yearly_results.append({
+            'year': int(year),
+            'k': k,
+            'state_assignments': assigns,
+            'cluster_summaries': [
+                {'cluster_id': int(cm['cluster_id']),
+                 'cluster_label': label_map.get(int(cm['cluster_id']), 'Moderate Crime'),
+                 'mean_ipc': cm.get('mean_ipc'),
+                 'state_count': cm.get('state_count')}
+                for cm in cluster_means
+            ],
+        })
+
+    # Compute transitions between consecutive years
+    transition_payload = compute_cluster_transitions(yearly_results)
+
+    return {
+        'yearly_clusters': yearly_results,
+        'transitions': transition_payload.get('transitions', []),
+        'transition_matrix': transition_payload.get('transition_matrix', {}),
+        'stability_scores': transition_payload.get('stability_scores', {}),
+        'metadata': {
+            'features_used': list(feature_src.keys()),
+            'fixed_k': 3,
+            'years_processed': [int(y) for y in years],
+            'deviations': notes,
         },
     }
 
@@ -907,7 +1285,55 @@ def compute_forecasts(state_df: DataFrame, notes: List[str]) -> Dict[str, Any]:
 
             years = sub["year"].to_numpy(dtype=float)
             y = sub[metric_src].to_numpy(dtype=float)
-            x = (years - 2001.0).reshape(-1, 1)
+            min_yr, max_yr = int(years.min()), int(years.max())
+            min_data_year = float(min_yr)
+
+            # --- Step 1: Detect gaps in data ---
+            all_years_set = set(int(yr_val) for yr_val in years)
+            gap_years = [yr_val for yr_val in range(min_yr, max_yr + 1) if yr_val not in all_years_set]
+
+            # --- Step 6a: Edge case — only 1 year of data ---
+            if len(years) <= 1:
+                notes.append(
+                    f"Forecasting skipped for state={state}, metric={metric_out}: "
+                    f"only {len(years)} year(s) of data — insufficient for regression."
+                )
+                # Still emit the single actual point
+                for yr_val, val in zip(years, y):
+                    time_series.append({
+                        "state": state,
+                        "year": int(yr_val),
+                        "value": float(val),
+                        "metric": metric_out,
+                        "type": "actual",
+                    })
+                model_meta.append({
+                    "state": state,
+                    "metric": metric_out,
+                    "best_model": None,
+                    "cv_mae": None,
+                    "train_r2": None,
+                    "actual_years": sorted(int(yr_val) for yr_val in years),
+                    "gap_years": sorted(gap_years),
+                    "forecast_years": [],
+                    "skipped": True,
+                    "skip_reason": "insufficient data (<=1 year)",
+                })
+                continue
+
+            # --- Step 6b: Edge case — large gap warning ---
+            if gap_years:
+                max_gap_span = max(
+                    b - a for a, b in zip(sorted(all_years_set), sorted(all_years_set)[1:])
+                ) - 1 if len(all_years_set) > 1 else 0
+                if max_gap_span > 5:
+                    notes.append(
+                        f"Forecasting WARNING for state={state}, metric={metric_out}: "
+                        f"largest gap is {max_gap_span} years — gap-fill reliability may be low."
+                    )
+
+            # --- Step 2: Train on ALL actual data points (unchanged logic) ---
+            x = (years - min_data_year).reshape(-1, 1)
 
             candidate_models = {
                 "poly2_ridge_a10": Pipeline([
@@ -948,42 +1374,58 @@ def compute_forecasts(state_df: DataFrame, notes: List[str]) -> Dict[str, Any]:
             train_pred = best_model.predict(x)
             train_r2 = float(r2_score(y, train_pred)) if len(y) >= 2 else None
 
-            for yr, val in zip(years, y):
-                time_series.append(
-                    {
-                        "state": state,
-                        "year": int(yr),
-                        "value": float(val),
-                        "metric": metric_out,
-                        "type": "actual",
-                    }
-                )
+            # --- Step 5: Compute residual std for confidence intervals ---
+            residuals = y - best_model.predict(x)
+            residual_std = float(np.std(residuals)) if len(residuals) > 1 else 0.0
 
-            future_years = np.arange(2015, 2021, dtype=float)
-            xf = (future_years - 2001.0).reshape(-1, 1)
-            preds = best_model.predict(xf)
-            preds = np.clip(preds, 0, None)
-
-            for yr, val in zip(future_years, preds):
-                time_series.append(
-                    {
-                        "state": state,
-                        "year": int(yr),
-                        "value": float(val),
-                        "metric": metric_out,
-                        "type": "predicted",
-                    }
-                )
-
-            model_meta.append(
-                {
+            # --- Step 4: Emit actual data points ---
+            for yr_val, val in zip(years, y):
+                time_series.append({
                     "state": state,
+                    "year": int(yr_val),
+                    "value": float(val),
                     "metric": metric_out,
-                    "best_model": best_name,
-                    "cv_mae": best_mae,
-                    "train_r2": train_r2,
-                }
-            )
+                    "type": "actual",
+                })
+
+            # --- Step 3: Predict for gaps AND future ---
+            cfg = get_config()
+            gap_years_arr = np.array(gap_years, dtype=float) if gap_years else np.array([], dtype=float)
+            future_years = np.arange(max_yr + 1, max_yr + 1 + cfg.forecast_horizon, dtype=float)
+            all_pred_years = np.concatenate([gap_years_arr, future_years])
+
+            if len(all_pred_years) > 0:
+                x_pred = (all_pred_years - min_data_year).reshape(-1, 1)
+                all_preds = best_model.predict(x_pred)
+                all_preds = np.clip(all_preds, 0, None)
+
+                gap_years_set = set(gap_years)
+                for yr_val, val in zip(all_pred_years, all_preds):
+                    # Distance to nearest actual data point
+                    dist = min(abs(yr_val - ay) for ay in years)
+                    ci_width = residual_std * (1 + 0.1 * dist)  # grows with distance
+                    entry = {
+                        "state": state,
+                        "year": int(yr_val),
+                        "value": float(val),
+                        "metric": metric_out,
+                        "type": "gap_fill" if int(yr_val) in gap_years_set else "predicted",
+                        "confidence_lower": float(max(0, val - 1.96 * ci_width)),
+                        "confidence_upper": float(val + 1.96 * ci_width),
+                    }
+                    time_series.append(entry)
+
+            # --- Step 7: Model metadata with gap info ---
+            model_meta.append({
+                "state": state,
+                "metric": metric_out,
+                "best_model": best_name,
+                "cv_mae": best_mae,
+                "train_r2": train_r2,
+                "actual_years": sorted(int(yr_val) for yr_val in years),
+                "gap_years": sorted(gap_years),
+                "forecast_years": sorted(int(yr_val) for yr_val in future_years),
+            })
 
     time_series = sorted(time_series, key=lambda x: (x["state"], x["metric"], x["year"], x["type"]))
     model_meta = sorted(model_meta, key=lambda x: (x["state"], x["metric"]))
@@ -995,12 +1437,20 @@ def compute_forecasts(state_df: DataFrame, notes: List[str]) -> Dict[str, Any]:
                 "PolynomialFeatures(degree=3)+Ridge(alpha=50.0)",
             ],
             "selection": "TimeSeriesSplit(n_splits=3) by neg_mean_absolute_error when sufficient samples",
-            "input_feature": "t = year - 2001",
+            "input_feature": "t = year - min_data_year (per state)",
+            "gap_aware": True,
+            "gap_fill_method": "Same Ridge regression model used for future forecasting; gap years are interpolated/extrapolated from all actual data points.",
+            "confidence_intervals": "1.96 * residual_std * (1 + 0.1 * distance_to_nearest_actual_year)",
+            "edge_cases": {
+                "single_year": "Skipped — no regression possible with <=1 data point.",
+                "large_gap_warning": "Warning emitted when any gap exceeds 5 consecutive years.",
+            },
             "deviations": notes,
         },
         "time_series": time_series,
         "model_metadata": model_meta,
     }
+
 
 
 def compute_national_trends(state_df: DataFrame, notes: List[str]) -> Dict[str, Any]:
@@ -1017,10 +1467,13 @@ def compute_national_trends(state_df: DataFrame, notes: List[str]) -> Dict[str, 
     ).orderBy("year")
     yearly_rows = rows_to_dicts(yearly, ["year"])
 
+    min_year = int(state_df.agg(F.min('year')).collect()[0][0])
+    max_year = int(state_df.agg(F.max('year')).collect()[0][0])
+
     map_year = {r["year"]: r for r in yearly_rows}
     overall_change_pct = None
-    if 2001 in map_year and 2014 in map_year and map_year[2001].get("total_ipc"):
-        overall_change_pct = (safe_ratio(map_year[2014].get("total_ipc") - map_year[2001].get("total_ipc"), map_year[2001].get("total_ipc")) or 0.0) * 100.0
+    if min_year in map_year and max_year in map_year and map_year[min_year].get("total_ipc"):
+        overall_change_pct = (safe_ratio(map_year[max_year].get("total_ipc") - map_year[min_year].get("total_ipc"), map_year[min_year].get("total_ipc")) or 0.0) * 100.0
 
     candidate_crimes = existing(
         cols,
@@ -1032,15 +1485,15 @@ def compute_national_trends(state_df: DataFrame, notes: List[str]) -> Dict[str, 
 
     changes = []
     if candidate_crimes:
-        y2001 = state_df.filter(F.col("year") == 2001).agg(*[F.sum(c).alias(c) for c in candidate_crimes]).collect()[0].asDict()
-        y2014 = state_df.filter(F.col("year") == 2014).agg(*[F.sum(c).alias(c) for c in candidate_crimes]).collect()[0].asDict()
+        y_first = state_df.filter(F.col("year") == min_year).agg(*[F.sum(c).alias(c) for c in candidate_crimes]).collect()[0].asDict()
+        y_last = state_df.filter(F.col("year") == max_year).agg(*[F.sum(c).alias(c) for c in candidate_crimes]).collect()[0].asDict()
         for c in candidate_crimes:
-            b = y2001.get(c)
-            e = y2014.get(c)
+            b = y_first.get(c)
+            e = y_last.get(c)
             if b is None or e is None or float(b) == 0.0:
                 continue
             pct = ((float(e) - float(b)) / float(b)) * 100.0
-            changes.append({"crime_type": c, "pct_change": pct, "value_2001": b, "value_2014": e})
+            changes.append({"crime_type": c, "pct_change": pct, f"value_{min_year}": b, f"value_{max_year}": e})
 
     fastest_growing = sorted(changes, key=lambda x: x["pct_change"], reverse=True)[:5]
     fastest_declining = [x for x in sorted(changes, key=lambda x: x["pct_change"]) if x["pct_change"] < 0][:5]
@@ -1088,12 +1541,34 @@ def section_counts(payload: Dict[str, Any]) -> Dict[str, int]:
 
 
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Crime Analytics Pipeline')
+    parser.add_argument('--config', default=None, help='Path to config.yaml')
+    parser.add_argument('--forecast-horizon', type=int, default=None, help='Years to forecast ahead')
+    parser.add_argument('--k-range', default=None, help='KMeans k range, e.g. 2-12')
+    parser.add_argument('--output-dir', default=None, help='Output directory override')
+    args = parser.parse_args()
+
+    # Build CLI overrides dict
+    cli_overrides = {}
+    if args.forecast_horizon is not None:
+        cli_overrides['forecast'] = {'horizon': args.forecast_horizon}
+    if args.k_range:
+        parts = args.k_range.split('-')
+        cli_overrides['kmeans'] = {'k_min': int(parts[0]), 'k_max': int(parts[1])}
+    if args.output_dir:
+        cli_overrides['paths'] = {'output_dir': args.output_dir}
+
+    load_config(config_path=args.config, cli_overrides=cli_overrides if cli_overrides else None)
+    cfg = get_config()
+
     spark = (
-        SparkSession.builder.appName("Crime Analytics Phase 2")
-        .config("spark.sql.shuffle.partitions", "8")
+        SparkSession.builder.appName(cfg.spark_app_name_analytics)
+        .config("spark.sql.shuffle.partitions", str(cfg.spark_shuffle_partitions))
         .getOrCreate()
     )
-    spark.sparkContext.setLogLevel("ERROR")
+    spark.sparkContext.setLogLevel(cfg.spark_log_level)
 
     print("=" * 88)
     print("PHASE 2 ANALYTICS - INPUT VALIDATION")
@@ -1122,7 +1597,15 @@ def main() -> None:
     print("STATE MASTER ROW COUNT:", state_df.count())
     state_df.show(5, truncate=False)
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    # Override OUTPUT_DIR from config if set
+    output_dir = os.path.join(ROOT_DIR, cfg.output_dir)
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Phase 7: Emit validation warnings
+    print("\n" + "=" * 60)
+    print("VALIDATION WARNINGS")
+    print("=" * 60)
+    _emit_analytics_warnings(state_df, district_df)
 
     district_notes: List[str] = []
     cluster_notes: List[str] = []
@@ -1131,6 +1614,8 @@ def main() -> None:
     supp_notes: List[str] = []
     forecast_notes: List[str] = []
     national_notes: List[str] = []
+    trajectory_notes: List[str] = []
+    yearly_cluster_notes: List[str] = []
 
     district_payload = compute_district_analysis(district_df, district_notes)
     cluster_payload = compute_clusters(state_df, cluster_notes)
@@ -1139,6 +1624,8 @@ def main() -> None:
     supplementary_payload = compute_supplementary(state_df, supp_notes)
     forecast_payload = compute_forecasts(state_df, forecast_notes)
     national_payload = compute_national_trends(state_df, national_notes)
+    trajectory_payload = compute_trajectory_clusters(state_df, trajectory_notes)
+    yearly_cluster_payload = compute_yearly_clusters(state_df, yearly_cluster_notes)
 
     outputs = {
         "district_analysis.json": district_payload,
@@ -1148,12 +1635,19 @@ def main() -> None:
         "supplementary.json": supplementary_payload,
         "forecasts.json": forecast_payload,
         "national_trends.json": national_payload,
+        "trajectory_clusters.json": trajectory_payload,
+        "yearly_clusters.json": yearly_cluster_payload,
     }
+
+    # Phase 7: Inject pipeline metadata into every output
+    output_meta = build_output_metadata()
+    for fname, payload in outputs.items():
+        payload['_pipeline_metadata'] = output_meta
 
     output_paths = []
     print("\nWRITING JSON OUTPUTS")
     for fname, payload in outputs.items():
-        path = os.path.join(OUTPUT_DIR, fname)
+        path = os.path.join(output_dir, fname)
         write_json(path, payload)
         output_paths.append(path)
         print(f"Wrote {path}")

@@ -217,3 +217,69 @@ def get_geojson_name(canonical_state):
 def get_state_name_mapping():
     """Return the raw-to-canonical state name mapping dict."""
     return STATE_NAME_MAP
+
+
+# =========================================================================
+# YAML-BASED LOADING (v1.3)
+# =========================================================================
+# Optionally loads state mappings from state_mappings.yaml if it exists.
+# Falls back to the hardcoded values above for backward compatibility.
+
+def _load_yaml_mappings():
+    """
+    Attempt to load state mappings from state_mappings.yaml.
+    Returns (state_name_map, canonical_states, canonical_to_geojson,
+             aggregate_state_patterns, aggregate_district_patterns)
+    or None if YAML is not available.
+    """
+    try:
+        import yaml
+    except ImportError:
+        return None
+
+    from pathlib import Path
+    yaml_path = Path(__file__).resolve().parent.parent / "state_mappings.yaml"
+    if not yaml_path.exists():
+        return None
+
+    try:
+        with open(yaml_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except Exception:
+        return None
+
+    return (
+        data.get("state_name_map", {}),
+        data.get("canonical_states", []),
+        data.get("canonical_to_geojson", {}),
+        data.get("aggregate_state_patterns", []),
+        data.get("aggregate_district_patterns", []),
+    )
+
+
+def _try_yaml_override():
+    """Override module-level dicts from YAML if available."""
+    global STATE_NAME_MAP, CANONICAL_STATES, CANONICAL_TO_GEOJSON
+    global AGGREGATE_STATE_PATTERNS, AGGREGATE_DISTRICT_PATTERNS
+
+    result = _load_yaml_mappings()
+    if result is None:
+        return  # Keep hardcoded values
+
+    yaml_map, yaml_states, yaml_geojson, yaml_agg_state, yaml_agg_district = result
+
+    # Merge YAML into existing (YAML takes precedence for overlapping keys)
+    if yaml_map:
+        STATE_NAME_MAP.update(yaml_map)
+    if yaml_states:
+        CANONICAL_STATES = yaml_states
+    if yaml_geojson:
+        CANONICAL_TO_GEOJSON.update(yaml_geojson)
+    if yaml_agg_state:
+        AGGREGATE_STATE_PATTERNS = yaml_agg_state
+    if yaml_agg_district:
+        AGGREGATE_DISTRICT_PATTERNS = yaml_agg_district
+
+
+# Run YAML override on module import
+_try_yaml_override()
