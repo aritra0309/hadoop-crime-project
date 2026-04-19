@@ -22,7 +22,7 @@
   <img src="https://img.shields.io/badge/Leaflet.js-Choropleth-199900?logo=leaflet&logoColor=white" alt="Leaflet"/>
   <img src="https://img.shields.io/badge/Chart.js-Interactive-FF6384?logo=chartdotjs&logoColor=white" alt="Chart.js"/>
   <img src="https://img.shields.io/badge/Data-2001--2014-informational" alt="Data Range"/>
-  <img src="https://img.shields.io/badge/Datasets-18_CSVs-blueviolet" alt="Datasets"/>
+  <img src="https://img.shields.io/badge/Datasets-17_CSVs-blueviolet" alt="Datasets"/>
 </p>
 
 ---
