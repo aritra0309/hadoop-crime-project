@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/aritra0309/hadoop-crime-project/actions/workflows/ci.yml"><img src="https://github.com/aritra0309/hadoop-crime-project/actions/workflows/ci.yml/badge.svg" alt="CI Pipeline"/></a>
   <a href="https://doi.org/10.5281/zenodo.19631449"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.19631449.svg" alt="DOI"/></a>
-  <img src="https://img.shields.io/badge/Version-v1.2.0-green" alt="Version"/>
+  <img src="https://img.shields.io/badge/Version-v1.3.0-green" alt="Version"/>
 </p>
 
 <p align="center">
